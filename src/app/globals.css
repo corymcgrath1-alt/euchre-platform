@@ -1,0 +1,222 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+:root {
+  color-scheme: dark;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  min-height: 100vh;
+  margin: 0;
+  background:
+    radial-gradient(circle at 20% 10%, rgba(209, 164, 76, 0.08), transparent 28rem),
+    radial-gradient(circle at 80% 0%, rgba(43, 111, 86, 0.22), transparent 32rem),
+    #071411;
+  color: #eef8f4;
+}
+
+button:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.euchre-table-rail {
+  position: relative;
+  overflow: hidden;
+  border: 1px solid rgba(209, 164, 76, 0.38);
+  background:
+    linear-gradient(135deg, rgba(123, 72, 34, 0.82), rgba(57, 30, 15, 0.96)),
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.06) 0 1px, transparent 1px 24px);
+  box-shadow: 0 28px 70px rgba(0, 0, 0, 0.38), inset 0 0 0 1px rgba(255, 255, 255, 0.08);
+}
+
+.euchre-felt {
+  position: relative;
+  overflow: hidden;
+  background:
+    radial-gradient(ellipse at center, rgba(29, 121, 85, 0.92) 0%, rgba(13, 77, 56, 0.98) 58%, rgba(6, 42, 32, 1) 100%),
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.03) 0 1px, transparent 1px 9px);
+  box-shadow: inset 0 0 38px rgba(0, 0, 0, 0.45), inset 0 0 0 1px rgba(255, 255, 255, 0.06);
+}
+
+.euchre-felt::before {
+  content: "";
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background:
+    radial-gradient(ellipse at center, transparent 0 48%, rgba(0, 0, 0, 0.24) 100%),
+    repeating-radial-gradient(circle at center, rgba(255, 255, 255, 0.025) 0 1px, transparent 1px 7px);
+}
+
+.playing-card {
+  aspect-ratio: 5 / 7;
+  min-width: 3.8rem;
+  border-radius: 0.56rem;
+  box-shadow: 0 0.55rem 1rem rgba(0, 0, 0, 0.24), inset 0 0 0 1px rgba(255, 255, 255, 0.74);
+}
+
+.playing-card-back {
+  background-color: #9b5a32;
+  background:
+    linear-gradient(135deg, #d1a44c, #762126),
+    repeating-linear-gradient(45deg, rgba(255, 255, 255, 0.22) 0 2px, rgba(155, 90, 50, 0.22) 2px 8px);
+}
+
+.trick-play-card {
+  animation: trick-card-settle 260ms ease-out both;
+}
+
+[data-seat="south"] .trick-play-card {
+  --trick-from-x: 0;
+  --trick-from-y: 1.8rem;
+}
+
+[data-seat="west"] .trick-play-card {
+  --trick-from-x: -1.8rem;
+  --trick-from-y: 0;
+}
+
+[data-seat="north"] .trick-play-card {
+  --trick-from-x: 0;
+  --trick-from-y: -1.8rem;
+}
+
+[data-seat="east"] .trick-play-card {
+  --trick-from-x: 1.8rem;
+  --trick-from-y: 0;
+}
+
+.trick-seat-slot[data-winning="true"] {
+  animation: trick-winner-pulse 560ms ease-out both;
+}
+
+.trick-collect-stack {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  z-index: 18;
+  height: 4rem;
+  width: 3rem;
+  transform: translate(-50%, -50%);
+  pointer-events: none;
+  animation: trick-stack-to-center 260ms ease-out both, trick-stack-collect 420ms 560ms ease-in forwards;
+}
+
+.trick-stack-card-0 {
+  transform: rotate(-8deg);
+}
+
+.trick-stack-card-1 {
+  transform: translate(0.12rem, 0.08rem) rotate(-3deg);
+}
+
+.trick-stack-card-2 {
+  transform: translate(0.22rem, 0.16rem) rotate(3deg);
+}
+
+.trick-stack-card-3 {
+  transform: translate(0.32rem, 0.24rem) rotate(8deg);
+}
+
+.trick-collect-south-pile {
+  --collect-x: 0;
+  --collect-y: 7.4rem;
+}
+
+.trick-collect-west-pile {
+  --collect-x: -13rem;
+  --collect-y: 0;
+}
+
+.trick-collect-north-pile {
+  --collect-x: 0;
+  --collect-y: -7.4rem;
+}
+
+.trick-collect-east-pile {
+  --collect-x: 13rem;
+  --collect-y: 0;
+}
+
+.score-card-base {
+  left: 0.2rem;
+  top: 0.35rem;
+  transform: rotate(-4deg);
+}
+
+.score-card-cover {
+  left: 0.2rem;
+  top: 0.35rem;
+}
+
+.score-card-unused {
+  filter: saturate(0.8) brightness(0.9);
+}
+
+.five-card-score-stack .score-five-card {
+  will-change: transform;
+}
+
+@keyframes trick-card-settle {
+  from {
+    opacity: 0.35;
+    transform: translate(var(--trick-from-x, 0), var(--trick-from-y, 0)) scale(0.94);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(0, 0) scale(1);
+  }
+}
+
+@keyframes trick-winner-pulse {
+  0% {
+    box-shadow: 0 0 0 rgba(209, 164, 76, 0);
+  }
+
+  50% {
+    box-shadow: 0 0 1.4rem rgba(209, 164, 76, 0.38);
+  }
+
+  100% {
+    box-shadow: 0 0 0.6rem rgba(209, 164, 76, 0.18);
+  }
+}
+
+@keyframes trick-stack-to-center {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -50%) scale(1.08);
+  }
+
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+
+@keyframes trick-stack-collect {
+  to {
+    opacity: 0;
+    transform: translate(calc(-50% + var(--collect-x, 0)), calc(-50% + var(--collect-y, 0))) scale(0.72);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .trick-play-card,
+  .trick-seat-slot[data-winning="true"],
+  .trick-collect-stack {
+    animation-duration: 1ms;
+    animation-delay: 0ms;
+  }
+
+  .score-five-card {
+    transition-duration: 1ms;
+  }
+}

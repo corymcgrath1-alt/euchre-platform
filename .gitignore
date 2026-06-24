@@ -1,0 +1,13 @@
+node_modules/
+.next/
+.next-stale-*/
+.tools/
+out/
+dist/
+coverage/
+.data/
+simulations/
+playtest-results/
+*.tsbuildinfo
+.env
+.env*.local
