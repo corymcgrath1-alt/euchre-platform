@@ -9,14 +9,32 @@ import {
   getBotPolicy,
   listBotPolicies
 } from "./bot-policies";
+import {
+  chooseIntermediateDealerDiscard,
+  evaluateIntermediateHandStrength,
+  shouldIntermediateGoAlone
+} from "./intermediate-bot";
 import { legalActionsForPlayer } from "./rules";
-import type { GameAction, GameState, PlayerIndex } from "./types";
+import type { Card, GameAction, GameState, PlayerIndex } from "./types";
 
 describe("bot policies", () => {
   it("registers basic-v1 as the default policy", () => {
     expect(DEFAULT_BOT_POLICY_ID).toBe("basic-v1");
-    expect(listBotPolicies().map((policy) => policy.id)).toEqual(["basic-v1", "legal-random-v1"]);
+    expect(listBotPolicies().map((policy) => policy.id)).toEqual(["basic-v1", "legal-random-v1", "intermediate-v1"]);
     expect(getBotPolicy(DEFAULT_BOT_POLICY_ID).metadata.name).toBe("Basic v1");
+  });
+
+  it("registers intermediate-v1 without changing the default policy", () => {
+    const policy = getBotPolicy("intermediate-v1");
+
+    expect(policy.metadata).toMatchObject({
+      id: "intermediate-v1",
+      name: "Intermediate v1",
+      version: "1.0.0",
+      deterministic: true,
+      usesSeededRng: false
+    });
+    expect(DEFAULT_BOT_POLICY_ID).toBe("basic-v1");
   });
 
   it("preserves current bot behavior through basic-v1", () => {
@@ -53,8 +71,84 @@ describe("bot policies", () => {
     }
   });
 
+  it("intermediate-v1 selects only legal actions from bidding states", () => {
+    const policy = getBotPolicy("intermediate-v1");
+    let state = dispatchAction(createInitialGameState({ stickDealer: true, targetScore: 10 }), {
+      type: "START_HAND",
+      seed: 54321
+    });
+
+    for (let index = 0; index < 8 && state.phase !== "playing"; index += 1) {
+      const action = policy.chooseAction(state, botForSeat(state.activePlayer), {
+        random: seededRandom(222),
+        nextSeed: () => 222
+      });
+      expect(action).not.toBeNull();
+      assertLegalAction(state, action);
+      state = dispatchAction(state, action);
+    }
+  });
+
+  it("intermediate-v1 is deterministic for the same state", () => {
+    const policy = getBotPolicy("intermediate-v1");
+    const state = dispatchAction(createInitialGameState({ stickDealer: true, targetScore: 10 }), {
+      type: "START_HAND",
+      seed: 12345
+    });
+    const bot = botForSeat(state.activePlayer);
+
+    const first = policy.chooseAction(state, bot, { random: seededRandom(1), nextSeed: () => 1 });
+    const second = policy.chooseAction(state, bot, { random: seededRandom(999), nextSeed: () => 999 });
+
+    expect(second).toEqual(first);
+  });
+
+  it("intermediate hand strength ranks obvious trump strength above weak hands", () => {
+    const strong: Card[] = [
+      { rank: "J", suit: "hearts" },
+      { rank: "J", suit: "diamonds" },
+      { rank: "A", suit: "hearts" },
+      { rank: "K", suit: "hearts" },
+      { rank: "A", suit: "clubs" }
+    ];
+    const weak: Card[] = [
+      { rank: "9", suit: "clubs" },
+      { rank: "10", suit: "diamonds" },
+      { rank: "Q", suit: "spades" },
+      { rank: "K", suit: "clubs" },
+      { rank: "9", suit: "diamonds" }
+    ];
+
+    expect(evaluateIntermediateHandStrength(strong, "hearts").total).toBeGreaterThan(evaluateIntermediateHandStrength(weak, "hearts").total);
+  });
+
+  it("intermediate loner threshold rejects obviously weak hands", () => {
+    const weak: Card[] = [
+      { rank: "9", suit: "clubs" },
+      { rank: "10", suit: "diamonds" },
+      { rank: "Q", suit: "spades" },
+      { rank: "K", suit: "clubs" },
+      { rank: "9", suit: "diamonds" }
+    ];
+
+    expect(shouldIntermediateGoAlone(weak, "hearts")).toBe(false);
+  });
+
+  it("intermediate dealer discard keeps bowers and trump when reasonable", () => {
+    const hand: Card[] = [
+      { rank: "J", suit: "hearts" },
+      { rank: "J", suit: "diamonds" },
+      { rank: "A", suit: "hearts" },
+      { rank: "9", suit: "clubs" },
+      { rank: "10", suit: "spades" },
+      { rank: "Q", suit: "clubs" }
+    ];
+
+    expect(cardId(chooseIntermediateDealerDiscard(hand, "hearts"))).toBe("9-clubs");
+  });
+
   it("rejects unknown bot policy ids with available policy names", () => {
-    expect(() => assertBotPolicyId("missing-v1")).toThrow("Available policies: basic-v1, legal-random-v1");
+    expect(() => assertBotPolicyId("missing-v1")).toThrow("Available policies: basic-v1, legal-random-v1, intermediate-v1");
   });
 });
 

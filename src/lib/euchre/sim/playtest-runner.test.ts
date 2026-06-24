@@ -44,6 +44,23 @@ describe("playtest runner", () => {
     expect(summary.metrics.botPolicyId).toBe("legal-random-v1");
   });
 
+  it("completes 100 intermediate games with strict invariants enabled", async () => {
+    const summary = await runPlaytest({
+      games: 100,
+      seed: 12345,
+      targetScore: 10,
+      stickDealer: true,
+      botPolicy: "intermediate-v1",
+      invariants: "strict"
+    });
+
+    expect(summary.completedGames).toBe(100);
+    expect(summary.failedGames).toBe(0);
+    expect(summary.failures).toEqual([]);
+    expect(summary.botPolicy.id).toBe("intermediate-v1");
+    expect(summary.metrics.botPolicyId).toBe("intermediate-v1");
+  });
+
   it("same seed and config produce the same summary-critical results", async () => {
     const config = {
       games: 20,

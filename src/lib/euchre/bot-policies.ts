@@ -1,8 +1,9 @@
 import { chooseBotAction, type BotProfile } from "./bots";
+import { chooseIntermediateBotAction } from "./intermediate-bot";
 import { legalActionsForPlayer } from "./rules";
 import type { Card, GameAction, GameState, PlayerIndex } from "./types";
 
-export type BotPolicyId = "basic-v1" | "legal-random-v1";
+export type BotPolicyId = "basic-v1" | "legal-random-v1" | "intermediate-v1";
 
 export type BotPolicyMetadata = {
   id: BotPolicyId;
@@ -58,9 +59,24 @@ const LEGAL_RANDOM_V1: BotPolicy = {
   }
 };
 
+const INTERMEDIATE_V1: BotPolicy = {
+  metadata: {
+    id: "intermediate-v1",
+    name: "Intermediate v1",
+    version: "1.0.0",
+    description: "Simple deterministic heuristic bot with hand-strength bidding, position awareness, and selective loners.",
+    deterministic: true,
+    usesSeededRng: false
+  },
+  chooseAction(state, bot) {
+    return chooseIntermediateBotAction(state, bot);
+  }
+};
+
 const BOT_POLICIES: Record<BotPolicyId, BotPolicy> = {
   "basic-v1": BASIC_V1,
-  "legal-random-v1": LEGAL_RANDOM_V1
+  "legal-random-v1": LEGAL_RANDOM_V1,
+  "intermediate-v1": INTERMEDIATE_V1
 };
 
 export function getBotPolicy(id: BotPolicyId): BotPolicy {
