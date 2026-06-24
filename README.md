@@ -255,6 +255,24 @@ count, team win rates, maker win/euchre/march rates, loner rates, bidding rates,
 dealer rate, close-game rate, and blowout rate. `metrics.json` includes the full
 Euchre-specific aggregates and bot policy metadata.
 
+Compare two completed playtest runs:
+
+```powershell
+npm run compare-playtests -- --a ./playtest-results/basic-v1-clean-1k/summary.json --a-label basic-v1 --b ./playtest-results/legal-random-v1-clean-1k/summary.json --b-label legal-random-v1
+```
+
+JSON comparison output can also be written to disk:
+
+```powershell
+npm run compare-playtests -- --a ./playtest-results/basic-v1-clean-1k/summary.json --b ./playtest-results/legal-random-v1-clean-1k/summary.json --format json --out ./playtest-results/comparison-clean-1k/report.json
+```
+
+Rate deltas are reported as percentage points, so a maker win rate move from `78.0%`
+to `48.4%` appears as `-29.6 pts`, not `-29.6%`. Comparison reports are only as
+meaningful as the policies being compared: `legal-random-v1` is a legal-action
+stress-test baseline, not a strategy bot, and `basic-v1` is still a basic heuristic
+policy rather than expert human play.
+
 Outputs:
 
 - `summary.json`: full playtest summary, metrics, and failures.
