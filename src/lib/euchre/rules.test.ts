@@ -90,6 +90,19 @@ describe("trick winner logic", () => {
 
     expect(determineTrickWinner(trick, "spades")).toBe(2);
   });
+
+  it("determines a winner for a three-card lone trick", () => {
+    const trick: Trick = {
+      leader: 0,
+      plays: [
+        { player: 0, card: c("A", "hearts") },
+        { player: 1, card: c("9", "hearts") },
+        { player: 3, card: c("J", "diamonds") }
+      ]
+    };
+
+    expect(determineTrickWinner(trick, "hearts")).toBe(3);
+  });
 });
 
 describe("scoring", () => {
@@ -282,6 +295,33 @@ describe("state machine", () => {
     expect(state.completedTricks[0].winner).toBe(2);
     expect(state.currentTrick?.leader).toBe(2);
     expect(state.activePlayer).toBe(2);
+  });
+
+  it("sits out the caller's partner during a lone hand", () => {
+    let state: GameState = {
+      ...makePlayingState([
+        [c("A", "clubs"), c("K", "clubs"), c("Q", "clubs"), c("10", "clubs"), c("9", "clubs")],
+        [c("9", "diamonds"), c("10", "diamonds"), c("Q", "diamonds"), c("K", "diamonds"), c("A", "diamonds")],
+        [c("9", "hearts"), c("10", "hearts"), c("Q", "hearts"), c("K", "hearts"), c("A", "hearts")],
+        [c("9", "spades"), c("10", "spades"), c("Q", "spades"), c("K", "spades"), c("A", "spades")]
+      ]),
+      lonePlayer: 0
+    };
+
+    while (state.phase === "playing") {
+      const player = state.activePlayer;
+      expect(player).not.toBe(2);
+      const card = legalActionsForPlayer(state, player).playableCards[0];
+      state = dispatchAction(state, { type: "PLAY_CARD", player, card });
+    }
+
+    expect(state.phase).toBe("handComplete");
+    expect(state.handResult?.lone).toBe(true);
+    expect(state.hands[2]).toHaveLength(5);
+    expect(state.completedTricks).toHaveLength(5);
+    expect(state.completedTricks.every((trick) => trick.plays.length === 3)).toBe(true);
+    expect(state.completedTricks.flatMap((trick) => trick.plays).some((play) => play.player === 2)).toBe(false);
+    expect(state.tricksWon[0] + state.tricksWon[1]).toBe(5);
   });
 
   it("completes the game at the selected target score", () => {

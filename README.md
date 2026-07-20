@@ -2,6 +2,10 @@
 
 Phase 1 foundation for a production-minded online/mobile Euchre platform.
 
+## Current Codex Handoff
+
+This branch hardens the accessible engine repository for the Practice-match vertical slice. The live Lovable project was inspected but could not be edited from this session because the connector has read access only and returned `403 insufficient_scope` for write operations. See `docs/CODEX_TAKEOVER_AUDIT.md` and `docs/VERIFICATION.md`.
+
 ## Phase 1 Scope
 
 - Complete deterministic Euchre rules engine in TypeScript
@@ -63,11 +67,11 @@ this 24-card deck that is equivalent to "no ace, king, queen, or jack." Regional
 vary widely, so future config can add additional qualifier modes without changing the
 event-sourced structure.
 
-Loner mode currently persists `aloneOnly` and `withPartnerAllowed`. `aloneOnly` preserves
-the existing standard lone-hand behavior and scoring. `withPartnerAllowed` is intentionally
+Loner mode currently persists `aloneOnly` and `withPartnerAllowed`. `aloneOnly` now models
+standard lone-hand behavior: the caller's partner sits out, active turn order skips that
+seat, and each lone trick completes after three cards. `withPartnerAllowed` is intentionally
 stored and labeled as an assisted-loner variant setting, but full assisted-loner gameplay
-is deferred until its regional semantics are chosen. The current engine does not change
-lone-hand scoring or partner sit-out behavior for that variant.
+is deferred until its regional semantics are chosen.
 
 Deferred regional rules include Canadian loner, partner's best card, no ace/no face
 variants, Benny/Joker, must-trump-if-void, partner order-up restrictions, and custom

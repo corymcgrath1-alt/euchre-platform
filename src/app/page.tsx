@@ -245,7 +245,7 @@ export default function Home() {
 
   useEffect(() => {
     const latestCompleted = state.completedTricks[state.completedTricks.length - 1];
-    if (state.phase !== "playing" || !latestCompleted || latestCompleted.plays.length !== 4) {
+    if (state.phase !== "playing" || !latestCompleted) {
       setHeldCompletedTrickKey(null);
       return;
     }
