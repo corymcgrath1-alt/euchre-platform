@@ -50,7 +50,7 @@ export async function POST(
       : validateViewerAction(gameActionSchema.parse(body.action));
 
     await getEventStore().appendMove({ gameId, expectedSequence, action });
-    return NextResponse.json(await loadPracticeProjection(gameId), { status: 201 });
+    return NextResponse.json(await loadPracticeProjection(gameId, action.type === "PLAY_CARD"), { status: 201 });
   } catch (error) {
     return apiError(error);
   }
@@ -78,7 +78,7 @@ function validateViewerAction(action: GameAction): GameAction {
   return action;
 }
 
-async function loadPracticeProjection(gameId: string) {
+async function loadPracticeProjection(gameId: string, considerCompletedTrick = false) {
   const loaded = await getEventStore().loadGame(gameId);
   const replay = loaded.state.phase === "gameComplete"
     ? buildClubReplayView(buildGameReview({
@@ -92,7 +92,12 @@ async function loadPracticeProjection(gameId: string) {
     gameId: loaded.game.id,
     status: loaded.game.status,
     eventCount: loaded.events.length,
-    table: buildClubTableView(loaded.state, VIEWER_SEAT),
+    table: buildClubTableView(loaded.state, VIEWER_SEAT, {
+      showLatestCompletedTrick: considerCompletedTrick
+        && loaded.state.phase === "playing"
+        && loaded.state.currentTrick?.plays.length === 0
+        && loaded.state.completedTricks.length > 0
+    }),
     replay
   };
 }

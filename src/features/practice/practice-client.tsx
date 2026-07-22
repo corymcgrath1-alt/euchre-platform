@@ -3,8 +3,6 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   TARGET_SCORES,
-  cardId,
-  chooseBotAction,
   createDefaultBotProfiles,
   createInitialGameState,
   parsePracticeSeed,
@@ -12,17 +10,15 @@ import {
   type DealerSelection,
   type FarmersHandMode,
   type GameAction,
-  type GameState,
   type LonerMode,
   type PlayerIndex,
   type TargetScore
 } from "@/lib/euchre";
-import type { LoadedGame } from "@/lib/persistence/event-store";
-import { buildClubReplayView } from "@/lib/presentation/club/replay";
-import { buildClubTableView } from "@/lib/presentation/club/table";
+import type { PersistedGameRecord } from "@/lib/persistence/types";
+import type { ClubReplayView } from "@/lib/presentation/club/replay";
+import { buildClubTableView, type ClubTableView } from "@/lib/presentation/club/table";
 import type { ProfileAggregateSummary } from "@/lib/profiles/profile-aggregates";
 import type { PlayerProfileDetail } from "@/lib/profiles/profile-detail";
-import type { GameReviewSummary } from "@/lib/review/game-review";
 import type { PracticeCommandHandlers } from "./practice-actions";
 import { PracticePersistenceControls } from "./practice-persistence";
 import { PracticeProfilePanel } from "./practice-profile";
@@ -41,6 +37,14 @@ import { PracticeTable } from "./practice-table";
 const STORAGE_KEY = "euchre-platform-active-game-id";
 const HUMAN_SEAT: PlayerIndex = 0;
 
+interface PracticeProjectionResponse {
+  readonly gameId: string;
+  readonly status: PersistedGameRecord["status"];
+  readonly eventCount: number;
+  readonly table: ClubTableView;
+  readonly replay: ClubReplayView | null;
+}
+
 export default function PracticeClient() {
   const [stickDealer, setStickDealer] = useState(false);
   const [targetScore, setTargetScore] = useState<TargetScore>(10);
@@ -50,7 +54,7 @@ export default function PracticeClient() {
   const [lonerMode, setLonerMode] = useState<LonerMode>("aloneOnly");
   const [seedInput, setSeedInput] = useState("");
   const [lastSeed, setLastSeed] = useState<number | null>(null);
-  const [state, setState] = useState<GameState>(() => createInitialGameState({
+  const [tableView, setTableView] = useState<ClubTableView>(() => idleTableView({
     stickDealer,
     targetScore,
     botDifficulty,
@@ -59,22 +63,24 @@ export default function PracticeClient() {
     lonerMode
   }));
   const [persistedGameId, setPersistedGameId] = useState<string | null>(null);
+  const [eventCount, setEventCount] = useState(0);
   const [isSaving, setIsSaving] = useState(false);
   const [status, setStatus] = useState("Local state ready");
-  const [review, setReview] = useState<GameReviewSummary | null>(null);
+  const [review, setReview] = useState<ClubReplayView | null>(null);
   const [profileStats, setProfileStats] = useState<ProfileAggregateSummary | null>(null);
   const [selectedProfileSeat, setSelectedProfileSeat] = useState<PlayerIndex>(HUMAN_SEAT);
   const [profileDetail, setProfileDetail] = useState<PlayerProfileDetail | null>(null);
-  const [heldCompletedTrickKey, setHeldCompletedTrickKey] = useState<string | null>(null);
   const bots = useMemo(() => createDefaultBotProfiles(), []);
   const lastBotActionKey = useRef<string | null>(null);
   const lastAutoNextHandKey = useRef<string | null>(null);
-  const inPlayMode = state.phase !== "idle";
-  const tableView = useMemo(
-    () => buildClubTableView(state, HUMAN_SEAT, { showLatestCompletedTrick: Boolean(heldCompletedTrickKey) }),
-    [heldCompletedTrickKey, state]
-  );
-  const reviewView = useMemo(() => review ? buildClubReplayView(review) : null, [review]);
+  const inPlayMode = tableView.phase !== "idle";
+
+  const applyProjection = useCallback((projection: PracticeProjectionResponse) => {
+    setPersistedGameId(projection.gameId);
+    setEventCount(projection.eventCount);
+    setTableView(projection.table);
+    setReview(projection.replay);
+  }, []);
 
   const loadProfileStats = useCallback(async () => {
     try {
@@ -98,18 +104,17 @@ export default function PracticeClient() {
     setIsSaving(true);
     setStatus("Loading saved game events...");
     try {
-      const loaded = await fetchJson<LoadedGame>(`/api/games/${gameId}`);
-      setPersistedGameId(loaded.game.id);
-      setStickDealer(loaded.game.config.stickDealer);
-      setTargetScore(asTargetScore(loaded.game.config.targetScore));
-      setBotDifficulty(loaded.game.config.botDifficulty ?? "standard");
-      setDealerSelection(loaded.game.config.dealerSelection ?? "default");
-      setFarmersHandMode(loaded.game.config.farmersHandMode ?? "off");
-      setLonerMode(loaded.game.config.lonerMode ?? "aloneOnly");
-      setState(loaded.state);
-      setReview(null);
-      setStatus(`Restored ${loaded.events.length} persisted event${loaded.events.length === 1 ? "" : "s"}`);
-      window.localStorage.setItem(STORAGE_KEY, loaded.game.id);
+      const loaded = await fetchJson<PracticeProjectionResponse>(`/api/games/${gameId}/practice`);
+      const config = loaded.table.rules.config;
+      applyProjection(loaded);
+      setStickDealer(config.stickDealer);
+      setTargetScore(asTargetScore(config.targetScore));
+      setBotDifficulty(config.botDifficulty);
+      setDealerSelection(config.dealerSelection);
+      setFarmersHandMode(config.farmersHandMode);
+      setLonerMode(config.lonerMode);
+      setStatus(`Restored ${loaded.eventCount} persisted event${loaded.eventCount === 1 ? "" : "s"}`);
+      window.localStorage.setItem(STORAGE_KEY, loaded.gameId);
     } catch (error) {
       setPersistedGameId(null);
       window.localStorage.removeItem(STORAGE_KEY);
@@ -117,7 +122,7 @@ export default function PracticeClient() {
     } finally {
       setIsSaving(false);
     }
-  }, []);
+  }, [applyProjection]);
 
   useEffect(() => {
     void loadProfileStats();
@@ -129,25 +134,24 @@ export default function PracticeClient() {
     void loadProfileDetail(selectedProfileSeat);
   }, [loadProfileDetail, selectedProfileSeat]);
 
-  const act = useCallback(async (action: GameAction, actorLabel = "Human") => {
+  const submitViewerAction = useCallback(async (action: GameAction, actorLabel = "Human") => {
     if (!persistedGameId) {
       setStatus("Create a persisted game before playing moves");
       return false;
     }
     setIsSaving(true);
     try {
-      const result = await fetchJson<Pick<LoadedGame, "game" | "state">>(`/api/games/${persistedGameId}/events`, {
+      const projection = await fetchJson<PracticeProjectionResponse>(`/api/games/${persistedGameId}/practice`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ expectedSequence: state.moveLog.length, action })
+        body: JSON.stringify({ expectedSequence: eventCount, command: "VIEWER_ACTION", action })
       });
       if (action.type === "START_HAND" || action.type === "NEXT_HAND") {
-        setHeldCompletedTrickKey(null);
         lastBotActionKey.current = null;
         lastAutoNextHandKey.current = null;
       }
-      setState(result.state);
-      setStatus(`${actorLabel} persisted event #${result.state.moveLog.length - 1}`);
+      applyProjection(projection);
+      setStatus(`${actorLabel} persisted event #${projection.eventCount - 1}`);
       return true;
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Move could not be persisted");
@@ -155,78 +159,81 @@ export default function PracticeClient() {
     } finally {
       setIsSaving(false);
     }
-  }, [persistedGameId, state.moveLog.length]);
+  }, [applyProjection, eventCount, persistedGameId]);
 
-  useEffect(() => {
-    if (!persistedGameId || state.phase !== "gameComplete") {
-      setReview(null);
-      return;
-    }
-    let cancelled = false;
-    void fetchJson<{ review: GameReviewSummary }>(`/api/games/${persistedGameId}/review`)
-      .then((result) => {
-        if (!cancelled) {
-          setReview(result.review);
-          void loadProfileStats();
-          void loadProfileDetail(selectedProfileSeat);
-        }
-      })
-      .catch((error) => {
-        if (!cancelled) setStatus(error instanceof Error ? error.message : "Unable to load game review");
+  const submitBotMove = useCallback(async (botName: string) => {
+    if (!persistedGameId) return false;
+    setIsSaving(true);
+    try {
+      const projection = await fetchJson<PracticeProjectionResponse>(`/api/games/${persistedGameId}/practice`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ expectedSequence: eventCount, command: "BOT_MOVE" })
       });
-    return () => { cancelled = true; };
-  }, [loadProfileDetail, loadProfileStats, persistedGameId, selectedProfileSeat, state.moveLog.length, state.phase]);
+      applyProjection(projection);
+      setStatus(`${botName} persisted event #${projection.eventCount - 1}`);
+      return true;
+    } catch (error) {
+      setStatus(error instanceof Error ? error.message : "Bot move could not be persisted");
+      return false;
+    } finally {
+      setIsSaving(false);
+    }
+  }, [applyProjection, eventCount, persistedGameId]);
 
   useEffect(() => {
-    const latestCompleted = state.completedTricks[state.completedTricks.length - 1];
-    if (state.phase !== "playing" || !latestCompleted) {
-      setHeldCompletedTrickKey(null);
-      return;
-    }
-    const key = `${state.handNumber}:${state.completedTricks.length}:${latestCompleted.winner}:${latestCompleted.plays
-      .map((play) => `${play.player}-${cardId(play.card)}`).join("|")}`;
-    setHeldCompletedTrickKey(key);
+    if (!persistedGameId || !tableView.currentTrick.isShowingCompletedTrick) return;
     const timeout = window.setTimeout(() => {
-      setHeldCompletedTrickKey((current) => current === key ? null : current);
+      void fetchJson<PracticeProjectionResponse>(`/api/games/${persistedGameId}/practice`)
+        .then(applyProjection)
+        .catch((error) => setStatus(error instanceof Error ? error.message : "Unable to clear trick presentation"));
     }, 2800);
     return () => window.clearTimeout(timeout);
-  }, [state.completedTricks, state.handNumber, state.phase]);
+  }, [applyProjection, persistedGameId, tableView.currentTrick.isShowingCompletedTrick]);
 
   useEffect(() => {
-    if (!persistedGameId || isSaving) return;
-    const activeBot = bots.find((bot) => bot.enabled && bot.seat === state.activePlayer);
-    if (!activeBot) return;
-    const action = chooseBotAction(state, activeBot);
-    if (!action) return;
-    const actionKey = `${persistedGameId}:${state.moveLog.length}:${state.phase}:${state.activePlayer}`;
+    if (tableView.phase !== "gameComplete" || !review) return;
+    void loadProfileStats();
+    void loadProfileDetail(selectedProfileSeat);
+  }, [loadProfileDetail, loadProfileStats, review, selectedProfileSeat, tableView.phase]);
+
+  useEffect(() => {
+    if (!persistedGameId || isSaving || tableView.currentTrick.isShowingCompletedTrick) return;
+    const activeBot = bots.find((bot) => bot.enabled && bot.seat === tableView.activePlayer);
+    if (!activeBot || tableView.phase === "handComplete" || tableView.phase === "gameComplete" || tableView.phase === "idle") return;
+    const actionKey = `${persistedGameId}:${eventCount}:${tableView.phase}:${tableView.activePlayer}`;
     if (lastBotActionKey.current === actionKey) return;
     lastBotActionKey.current = actionKey;
-    const timeout = window.setTimeout(() => { void act(action, activeBot.name); }, 650);
+    const timeout = window.setTimeout(() => {
+      void submitBotMove(activeBot.name).then((success) => {
+        if (!success) lastBotActionKey.current = null;
+      });
+    }, 650);
     return () => window.clearTimeout(timeout);
-  }, [act, bots, isSaving, persistedGameId, state]);
+  }, [bots, eventCount, isSaving, persistedGameId, submitBotMove, tableView.activePlayer, tableView.currentTrick.isShowingCompletedTrick, tableView.phase]);
 
   useEffect(() => {
-    if (!persistedGameId || isSaving || state.phase !== "handComplete") return;
-    const actionKey = `${persistedGameId}:${state.moveLog.length}:next-hand:${state.handNumber}`;
+    if (!persistedGameId || isSaving || tableView.phase !== "handComplete") return;
+    const actionKey = `${persistedGameId}:${eventCount}:next-hand:${tableView.handNumber}`;
     if (lastAutoNextHandKey.current === actionKey) return;
     lastAutoNextHandKey.current = actionKey;
     const timeout = window.setTimeout(() => {
-      void act({ type: "NEXT_HAND", seed: Date.now() % 1_000_000 }, "Auto deal").then((success) => {
+      void submitViewerAction({ type: "NEXT_HAND", seed: Date.now() % 1_000_000 }, "Auto deal").then((success) => {
         if (!success) lastAutoNextHandKey.current = null;
       });
     }, 2600);
     return () => window.clearTimeout(timeout);
-  }, [act, isSaving, persistedGameId, state.handNumber, state.moveLog.length, state.phase]);
+  }, [eventCount, isSaving, persistedGameId, submitViewerAction, tableView.handNumber, tableView.phase]);
 
   const handlers: PracticeCommandHandlers = {
-    onPass: () => act({ type: "PASS", player: HUMAN_SEAT }),
-    onOrderUp: (alone) => act({ type: "ORDER_UP", player: HUMAN_SEAT, alone }),
-    onCallTrump: (suit, alone) => act({ type: "CALL_TRUMP", player: HUMAN_SEAT, suit, alone }),
-    onDeclineFarmersHand: () => act({ type: "FARMERS_HAND_DECLINE", player: HUMAN_SEAT }),
-    onClaimFarmersHandRedeal: () => act({ type: "FARMERS_HAND_REDEAL", player: HUMAN_SEAT, seed: Date.now() % 1_000_000 }),
-    onReplaceFarmersHandCards: (cards) => act({ type: "FARMERS_HAND_REPLACE", player: HUMAN_SEAT, cards: cards.map((card) => ({ ...card })) }),
-    onDiscard: (card) => act({ type: "DISCARD", player: HUMAN_SEAT, card }),
-    onPlayCard: (card) => act({ type: "PLAY_CARD", player: HUMAN_SEAT, card })
+    onPass: () => submitViewerAction({ type: "PASS", player: HUMAN_SEAT }),
+    onOrderUp: (alone) => submitViewerAction({ type: "ORDER_UP", player: HUMAN_SEAT, alone }),
+    onCallTrump: (suit, alone) => submitViewerAction({ type: "CALL_TRUMP", player: HUMAN_SEAT, suit, alone }),
+    onDeclineFarmersHand: () => submitViewerAction({ type: "FARMERS_HAND_DECLINE", player: HUMAN_SEAT }),
+    onClaimFarmersHandRedeal: () => submitViewerAction({ type: "FARMERS_HAND_REDEAL", player: HUMAN_SEAT, seed: Date.now() % 1_000_000 }),
+    onReplaceFarmersHandCards: (cards) => submitViewerAction({ type: "FARMERS_HAND_REPLACE", player: HUMAN_SEAT, cards: cards.map((card) => ({ ...card })) }),
+    onDiscard: (card) => submitViewerAction({ type: "DISCARD", player: HUMAN_SEAT, card }),
+    onPlayCard: (card) => submitViewerAction({ type: "PLAY_CARD", player: HUMAN_SEAT, card })
   };
 
   async function startNewGame() {
@@ -235,7 +242,7 @@ export default function PracticeClient() {
     try {
       const { seed } = parsePracticeSeed(seedInput);
       setLastSeed(seed);
-      const created = await fetchJson<{ game: LoadedGame["game"] }>("/api/games", {
+      const created = await fetchJson<{ game: PersistedGameRecord }>("/api/games", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -243,17 +250,19 @@ export default function PracticeClient() {
           metadata: { source: "local-practice-ui" }
         })
       });
-      setPersistedGameId(created.game.id);
-      lastBotActionKey.current = null;
-      setReview(null);
-      window.localStorage.setItem(STORAGE_KEY, created.game.id);
-      const started = await fetchJson<Pick<LoadedGame, "state">>(`/api/games/${created.game.id}/events`, {
+      const started = await fetchJson<PracticeProjectionResponse>(`/api/games/${created.game.id}/practice`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ expectedSequence: 0, action: { type: "START_HAND", seed } })
+        body: JSON.stringify({
+          expectedSequence: 0,
+          command: "VIEWER_ACTION",
+          action: { type: "START_HAND", seed }
+        })
       });
-      setState(started.state);
-      setStatus(`Persisted game ${created.game.id}`);
+      applyProjection(started);
+      lastBotActionKey.current = null;
+      window.localStorage.setItem(STORAGE_KEY, started.gameId);
+      setStatus(`Persisted game ${started.gameId}`);
     } catch (error) {
       setStatus(error instanceof Error ? error.message : "Unable to create persisted game");
     } finally {
@@ -262,8 +271,9 @@ export default function PracticeClient() {
   }
 
   function resetGame() {
-    setState(createInitialGameState({ stickDealer, targetScore, botDifficulty, dealerSelection, farmersHandMode, lonerMode }));
+    setTableView(idleTableView({ stickDealer, targetScore, botDifficulty, dealerSelection, farmersHandMode, lonerMode }));
     setPersistedGameId(null);
+    setEventCount(0);
     lastBotActionKey.current = null;
     lastAutoNextHandKey.current = null;
     setReview(null);
@@ -272,7 +282,7 @@ export default function PracticeClient() {
   }
 
   function confirmStartNewGame() {
-    const message = state.phase === "gameComplete"
+    const message = tableView.phase === "gameComplete"
       ? "Start a new active table? Completed games and immutable move history remain available."
       : "Clear the active table view? Persisted events are not deleted.";
     if (window.confirm(message)) resetGame();
@@ -280,8 +290,8 @@ export default function PracticeClient() {
 
   function updateBotDifficulty(nextDifficulty: BotDifficulty) {
     setBotDifficulty(nextDifficulty);
-    if (state.phase === "idle") {
-      setState(createInitialGameState({
+    if (tableView.phase === "idle") {
+      setTableView(idleTableView({
         stickDealer,
         targetScore,
         botDifficulty: nextDifficulty,
@@ -346,10 +356,10 @@ export default function PracticeClient() {
             <PracticeGameControls
               view={tableView}
               disabled={isSaving}
-              onDealNextHand={() => { void act({ type: "NEXT_HAND", seed: Date.now() % 1_000_000 }); }}
+              onDealNextHand={() => { void submitViewerAction({ type: "NEXT_HAND", seed: Date.now() % 1_000_000 }); }}
               onStartNewGame={confirmStartNewGame}
             />
-            {reviewView ? <PracticeReview view={reviewView} /> : null}
+            {review ? <PracticeReview view={review} /> : null}
           </section>
 
           <aside className="grid gap-4 xl:grid-cols-[minmax(20rem,0.8fr)_minmax(0,1.25fr)_minmax(18rem,0.9fr)_minmax(18rem,1fr)]">
@@ -372,6 +382,10 @@ export default function PracticeClient() {
       </section>
     </main>
   );
+}
+
+function idleTableView(config: Parameters<typeof createInitialGameState>[0]): ClubTableView {
+  return buildClubTableView(createInitialGameState(config), HUMAN_SEAT);
 }
 
 function asTargetScore(score: number): TargetScore {

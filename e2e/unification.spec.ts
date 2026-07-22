@@ -1,5 +1,6 @@
 import { readFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
+import { createInitialGameState, reduceGameAction } from "../src/lib/euchre";
 import type { E2eFixture } from "./global-setup";
 
 test.describe.configure({ mode: "serial" });
@@ -14,12 +15,11 @@ test.beforeAll(async () => {
 
 test("Practice preserves setup, legal action, and presentation visibility boundaries", async ({ page }) => {
   const errors = watchForBrowserErrors(page);
-  let initialState: { hands: Record<string, Array<{ rank: string; suit: string }>>; kitty: Array<{ rank: string; suit: string }>; upcard?: { rank: string; suit: string } } | undefined;
+  let firstPracticePayload: string | undefined;
   page.on("response", async (response) => {
-    if (response.request().method() !== "POST" || !response.url().includes("/events")) return;
+    if (firstPracticePayload || response.request().method() !== "POST" || !response.url().includes("/practice")) return;
     try {
-      const payload = await response.json() as { state?: typeof initialState };
-      if (!initialState && payload.state) initialState = payload.state;
+      firstPracticePayload = await response.text();
     } catch {
       // Non-JSON responses are covered by page and console error assertions.
     }
@@ -33,7 +33,7 @@ test("Practice preserves setup, legal action, and presentation visibility bounda
   await page.getByLabel("Seed").fill("12345");
   await page.getByRole("button", { name: "Start hand" }).click();
   await expect(page.getByTestId("practice-table")).toBeVisible();
-  await expect.poll(() => initialState !== undefined).toBe(true);
+  await expect.poll(() => firstPracticePayload !== undefined).toBe(true);
 
   const actionable = page.locator([
     'button[aria-label^="Play "]:not([disabled])',
@@ -53,12 +53,17 @@ test("Practice preserves setup, legal action, and presentation visibility bounda
 
   const html = await page.content();
   const storage = await page.evaluate(() => JSON.stringify({ ...window.localStorage }));
+  const initialState = reduceGameAction(createInitialGameState({
+    targetScore: 5,
+    botDifficulty: "standard"
+  }), { type: "START_HAND", seed: 12345 });
   const publicUpcard = initialState?.upcard ? cardId(initialState.upcard) : undefined;
-  const opponentIds = ["1", "2", "3"].flatMap((seat) => initialState?.hands[seat]?.map(cardId) ?? []);
-  const hiddenKittyIds = initialState?.kitty.map(cardId).filter((id) => id !== publicUpcard) ?? [];
+  const opponentIds = [1, 2, 3].flatMap((seat) => initialState.hands[seat as 1 | 2 | 3].map(cardId));
+  const hiddenKittyIds = initialState.kitty.map(cardId).filter((id) => id !== publicUpcard);
   for (const id of [...opponentIds, ...hiddenKittyIds]) {
     expect(html).not.toContain(id);
     expect(storage).not.toContain(id);
+    expect(firstPracticePayload).not.toContain(id);
   }
   expect(storage).not.toContain("hands");
   expect(storage).not.toContain("kitty");
