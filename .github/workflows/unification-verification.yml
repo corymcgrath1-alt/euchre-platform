@@ -1,0 +1,35 @@
+name: Unification verification
+
+on:
+  push:
+    branches:
+      - codex/unify-euchre-foundations-v1
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  source-audit:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+      - name: Upload source snapshot
+        uses: actions/upload-artifact@v4
+        with:
+          name: source-snapshot
+          if-no-files-found: error
+          retention-days: 1
+          path: |
+            .github
+            docs
+            migrations
+            scripts
+            src
+            *.json
+            *.mjs
+            *.ts
+            *.yaml
+            *.yml
+            README.md
