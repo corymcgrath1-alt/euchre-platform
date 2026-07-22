@@ -44,6 +44,8 @@ describe("Club table presentation", () => {
         2: [card("K", "spades")],
         3: [card("Q", "clubs")]
       },
+      kitty: [card("9", "clubs"), card("10", "clubs"), card("Q", "diamonds"), card("K", "hearts")],
+      upcard: card("9", "clubs"),
       currentTrick: {
         leader: 3,
         plays: [{ player: 3, card: card("10", "hearts") }]
@@ -57,7 +59,47 @@ describe("Club table presentation", () => {
     expect(serialized).not.toContain('"rank":"A","suit":"diamonds"');
     expect(serialized).not.toContain('"rank":"K","suit":"spades"');
     expect(serialized).not.toContain('"rank":"Q","suit":"clubs"');
-    expect(serialized).not.toContain("kitty");
+    expect(serialized).not.toContain('"rank":"10","suit":"clubs"');
+    expect(serialized).not.toContain('"rank":"Q","suit":"diamonds"');
+    expect(serialized).not.toContain('"rank":"K","suit":"hearts"');
+    expect(viewFor(state, 0).kittyCardCount).toBe(4);
+  });
+
+  it("removes hidden discard and replacement card identities from public activity", () => {
+    const state = makeState({
+      moveLog: [
+        move(0, { type: "START_HAND", seed: 90210 }),
+        move(1, { type: "DISCARD", player: 1, card: card("A", "diamonds") }),
+        move(2, { type: "FARMERS_HAND_REPLACE", player: 2, cards: [card("9", "clubs"), card("10", "clubs")] })
+      ]
+    });
+
+    const view = buildClubTableView(state, 0);
+    const serialized = JSON.stringify(view);
+
+    expect(serialized).toContain("West discarded after pickup");
+    expect(serialized).toContain("North replaced 2 Farmer's Hand cards");
+    expect(view.rules.seed).toBeUndefined();
+    expect(view.rules.items.some((item) => item.label === "Seed")).toBe(false);
+    expect(serialized).not.toContain("90210");
+    expect(serialized).not.toContain('"rank":"A","suit":"diamonds"');
+    expect(serialized).not.toContain('"rank":"9","suit":"clubs"');
+    expect(serialized).not.toContain('"rank":"10","suit":"clubs"');
+  });
+
+  it("gives different viewers only their own cloned hand", () => {
+    const state = makeState({
+      hands: {
+        0: [card("A", "hearts")],
+        1: [card("K", "spades")],
+        2: [card("Q", "diamonds")],
+        3: [card("J", "clubs")]
+      }
+    });
+
+    expect(buildClubTableView(state, 0).viewerHand.cards.map((candidate) => candidate.id)).toEqual(["A-hearts"]);
+    expect(buildClubTableView(state, 2).viewerHand.cards.map((candidate) => candidate.id)).toEqual(["Q-diamonds"]);
+    expect(JSON.stringify(buildClubTableView(state, 2))).not.toContain('"rank":"A","suit":"hearts"');
   });
 
   it("orients real seats around any viewer while preserving authoritative roles", () => {
@@ -123,5 +165,19 @@ function makeState(overrides: StateOverrides = {}): GameState {
     ...overrides,
     config: { ...base.config, ...overrides.config },
     hands: { ...base.hands, ...overrides.hands }
+  };
+}
+
+function viewFor(state: GameState, viewer: 0 | 1 | 2 | 3) {
+  return buildClubTableView(state, viewer);
+}
+
+function move(sequence: number, action: GameState["moveLog"][number]["action"]): GameState["moveLog"][number] {
+  return {
+    id: `event-${sequence}`,
+    sequence,
+    action,
+    player: "player" in action ? action.player : undefined,
+    createdAt: `2026-01-01T00:00:0${sequence}.000Z`
   };
 }
