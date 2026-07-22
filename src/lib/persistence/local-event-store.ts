@@ -216,7 +216,8 @@ function updateHandFromState(hand: PersistedHandRecord | undefined, state: GameS
 }
 
 function defaultStorePath(): string {
-  return path.join(process.cwd(), ".data", "local-event-store.json");
+  const configuredPath = process.env.EUCHRE_LOCAL_EVENT_STORE_PATH?.trim();
+  return configuredPath ? path.resolve(configuredPath) : path.join(process.cwd(), ".data", "local-event-store.json");
 }
 
 function randomId(prefix: string): string {
