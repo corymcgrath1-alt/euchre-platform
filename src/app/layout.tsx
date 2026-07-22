@@ -1,9 +1,10 @@
 import type { Metadata } from "next";
+import { ClubAppFrame } from "@/components/club/club-app-frame";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Euchre Platform",
-  description: "Phase 1 local multiplayer Euchre foundation"
+  title: "EUCHRE | Competitive Card Club",
+  description: "Authoritative Euchre practice and club records"
 };
 
 export default function RootLayout({
@@ -13,7 +14,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <ClubAppFrame>{children}</ClubAppFrame>
+      </body>
     </html>
   );
 }

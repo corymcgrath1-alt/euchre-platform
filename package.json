@@ -5,6 +5,9 @@
   "scripts": {
     "dev": "node ./node_modules/next/dist/bin/next dev -H 127.0.0.1",
     "build": "node ./node_modules/next/dist/bin/next build",
+    "build:e2e": "npm run build",
+    "start:e2e": "node ./node_modules/next/dist/bin/next start -H 127.0.0.1 -p 3005",
+    "e2e": "node ./node_modules/@playwright/test/cli.js test",
     "lint": "node ./node_modules/eslint/bin/eslint.js .",
     "playtest": "node ./scripts/playtest.cjs",
     "compare-playtests": "node ./scripts/compare-playtests.cjs",
@@ -22,6 +25,7 @@
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3.3.5",
+    "@playwright/test": "^1.61.1",
     "@types/node": "^22.10.2",
     "@types/react": "^19.0.1",
     "@types/react-dom": "^19.0.2",
