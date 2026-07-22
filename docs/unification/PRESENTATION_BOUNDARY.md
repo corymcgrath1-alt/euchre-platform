@@ -32,4 +32,3 @@ Adapters may not:
 - Future lobby: a viewer-authorized server projection, not client room state.
 
 Tests must prove deterministic output, source immutability, legal-card pass-through, hidden-card exclusion, stable orientation, and exact dealer/maker/trump/loner mapping.
-

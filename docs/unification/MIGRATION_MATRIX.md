@@ -42,4 +42,3 @@ The source comparison covers Club `main` at `78b4b256`, Practice at `875f6adf`, 
 Potentially reusable patterns are verified JWT actor derivation, strict intent schemas, SHA-256 idempotency hashes, direct transaction handling with prepared statements disabled, deterministic queue order with `FOR UPDATE SKIP LOCKED`, one-player reservations, match-row locks, stable rating-account lock order, post-commit version-only Realtime notifications, explicit player views, fail-closed CORS/environment gates, and redacted structured logs.
 
 The Club Ranked implementation remains a reference only. Its copied engine, TanStack client/runtime, Supabase schema, and Edge Function are not migrated in this slice. Hosted development verification was not completed, so it is not evidence of live or private-alpha readiness.
-

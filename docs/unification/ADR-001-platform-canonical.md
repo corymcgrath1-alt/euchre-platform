@@ -29,4 +29,3 @@ Presentation adapters may rename, format, sort, orient seats, select viewer-visi
 ## Consequences
 
 The first slice can adopt Club's ink, ivory, brass, felt, and oxblood identity without changing gameplay. Future multiplayer must wrap Platform commands and event persistence with authentication, seat ownership, concurrency, idempotency, and viewer filtering instead of synchronizing React state.
-

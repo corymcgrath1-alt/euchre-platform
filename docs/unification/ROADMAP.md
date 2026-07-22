@@ -55,4 +55,3 @@ Acceptance: secure server deals, queue reservations, row/match locks, timeouts/f
 ### WP7+: Competition And Cosmetics
 
 Leaderboards/seasons derive from rated ledgers; tournaments derive from authoritative matches; decks require real ownership/equipment records. No route launches on preview data.
-
