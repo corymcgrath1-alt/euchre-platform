@@ -4,6 +4,9 @@ on:
   push:
     branches:
       - codex/unify-euchre-foundations-v1
+  pull_request:
+    branches:
+      - codex/practice-vertical-slice-hardening
   workflow_dispatch:
 
 permissions:
