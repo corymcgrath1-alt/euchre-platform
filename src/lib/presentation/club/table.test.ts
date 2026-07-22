@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createInitialGameState, type Card, type GameState } from "@/lib/euchre";
+import { createInitialGameState, legalActionsForPlayer, type Card, type GameState } from "@/lib/euchre";
 import { buildClubTableView } from "./table";
 
 const card = (rank: Card["rank"], suit: Card["suit"]): Card => ({ rank, suit });
@@ -23,7 +23,9 @@ describe("Club table presentation", () => {
     });
 
     const view = buildClubTableView(state, 0);
+    const authoritative = legalActionsForPlayer(state, 0);
 
+    expect(view.legal.playableCardIds).toEqual(authoritative.playableCards.map((candidate) => `${candidate.rank}-${candidate.suit}`));
     expect(view.legal.playableCardIds).toEqual(["9-hearts"]);
     expect(view.legal.selectableCardIds).toEqual(["9-hearts"]);
     expect(view.viewerHand.cards.map((candidate) => [candidate.id, candidate.legal])).toEqual([
@@ -33,7 +35,7 @@ describe("Club table presentation", () => {
     ]);
   });
 
-  it("contains only the viewer hand and public trick cards", () => {
+  it("contains only the viewer hand and public trick or upcard identities", () => {
     const state = makeState({
       phase: "playing",
       activePlayer: 0,
@@ -52,20 +54,23 @@ describe("Club table presentation", () => {
       }
     });
 
-    const serialized = JSON.stringify(buildClubTableView(state, 0));
+    const view = buildClubTableView(state, 0);
+    const serialized = JSON.stringify(view);
 
     expect(serialized).toContain('"rank":"9","suit":"hearts"');
     expect(serialized).toContain('"rank":"10","suit":"hearts"');
+    expect(serialized).toContain('"rank":"9","suit":"clubs"');
     expect(serialized).not.toContain('"rank":"A","suit":"diamonds"');
     expect(serialized).not.toContain('"rank":"K","suit":"spades"');
     expect(serialized).not.toContain('"rank":"Q","suit":"clubs"');
     expect(serialized).not.toContain('"rank":"10","suit":"clubs"');
     expect(serialized).not.toContain('"rank":"Q","suit":"diamonds"');
     expect(serialized).not.toContain('"rank":"K","suit":"hearts"');
-    expect(viewFor(state, 0).kittyCardCount).toBe(4);
+    expect(view.kittyCardCount).toBe(4);
+    expect(view.publicKitty).toEqual({ hiddenCardCount: 3, upcard: card("9", "clubs") });
   });
 
-  it("removes hidden discard and replacement card identities from public activity", () => {
+  it("removes deal seeds and hidden discard or replacement identities from every activity surface", () => {
     const state = makeState({
       moveLog: [
         move(0, { type: "START_HAND", seed: 90210 }),
@@ -77,9 +82,15 @@ describe("Club table presentation", () => {
     const view = buildClubTableView(state, 0);
     const serialized = JSON.stringify(view);
 
-    expect(serialized).toContain("West discarded after pickup");
-    expect(serialized).toContain("North replaced 2 Farmer's Hand cards");
+    expect(view.activity.map((item) => item.label)).toEqual([
+      "Started a new hand",
+      "West discarded after pickup",
+      "North replaced 2 Farmer's Hand cards"
+    ]);
+    expect(view.moveHistory.map((item) => item.label)).toEqual(view.activity.map((item) => item.label));
+    expect(view.seats.find((seat) => seat.seat === 1)?.recentAction).toBe("West discarded after pickup");
     expect(view.rules.seed).toBeUndefined();
+    expect(view.summary.rules.seed).toBeUndefined();
     expect(view.rules.items.some((item) => item.label === "Seed")).toBe(false);
     expect(serialized).not.toContain("90210");
     expect(serialized).not.toContain('"rank":"A","suit":"diamonds"');
@@ -97,9 +108,12 @@ describe("Club table presentation", () => {
       }
     });
 
-    expect(buildClubTableView(state, 0).viewerHand.cards.map((candidate) => candidate.id)).toEqual(["A-hearts"]);
-    expect(buildClubTableView(state, 2).viewerHand.cards.map((candidate) => candidate.id)).toEqual(["Q-diamonds"]);
-    expect(JSON.stringify(buildClubTableView(state, 2))).not.toContain('"rank":"A","suit":"hearts"');
+    const south = buildClubTableView(state, 0);
+    const north = buildClubTableView(state, 2);
+    expect(south.viewerHand.cards.map((candidate) => candidate.id)).toEqual(["A-hearts"]);
+    expect(north.viewerHand.cards.map((candidate) => candidate.id)).toEqual(["Q-diamonds"]);
+    expect(JSON.stringify(north)).not.toContain('"rank":"A","suit":"hearts"');
+    expect(JSON.stringify(south)).not.toContain('"rank":"Q","suit":"diamonds"');
   });
 
   it("orients real seats around any viewer while preserving authoritative roles", () => {
@@ -150,6 +164,23 @@ describe("Club table presentation", () => {
     expect(state.hands[0][0]).toEqual(card("A", "hearts"));
     expect(second.viewerHand.cards[0].card).toEqual(card("A", "hearts"));
   });
+
+  it("keeps compatibility aliases equal without sharing mutable arrays", () => {
+    const state = makeState({
+      phase: "ordering",
+      activePlayer: 1,
+      upcard: card("Q", "hearts"),
+      kitty: [card("Q", "hearts")]
+    });
+
+    const view = buildClubTableView(state, 0);
+
+    expect(view.biddingTimeline).toEqual(view.bidding);
+    expect(view.turnPrompt).toEqual(view.turn);
+    expect(view.summary.rules).toEqual(view.rules);
+    expect(view.biddingTimeline).not.toBe(view.bidding);
+    expect(view.summary.rules).not.toBe(view.rules);
+  });
 });
 
 type StateOverrides = Omit<Partial<GameState>, "config" | "hands"> & {
@@ -166,10 +197,6 @@ function makeState(overrides: StateOverrides = {}): GameState {
     config: { ...base.config, ...overrides.config },
     hands: { ...base.hands, ...overrides.hands }
   };
-}
-
-function viewFor(state: GameState, viewer: 0 | 1 | 2 | 3) {
-  return buildClubTableView(state, viewer);
 }
 
 function move(sequence: number, action: GameState["moveLog"][number]["action"]): GameState["moveLog"][number] {

@@ -3,8 +3,8 @@ import {
   buildCurrentTrickView,
   buildEuchreScoreCardViews,
   buildFiveCardScoreView,
-  buildHumanHandView,
   buildHandResultExplanation,
+  buildHumanHandView,
   buildRuleSummary,
   buildTableSeatViews,
   buildTableStatusView,
@@ -16,6 +16,8 @@ import {
   getAvailableGameControls,
   legalActionsForPlayer,
   partnerOf,
+  TABLE_PLAYER_NAMES,
+  type AvailableGameControls,
   type BidDecision,
   type BiddingTimelineView,
   type Card,
@@ -28,7 +30,8 @@ import {
   type RuleSummary,
   type Suit,
   type TableCardView,
-  type TeamIndex
+  type TeamIndex,
+  type TurnPrompt
 } from "@/lib/euchre";
 
 export type ClubTablePosition = "south" | "west" | "north" | "east";
@@ -87,7 +90,38 @@ export interface ClubTableConfigView {
   readonly farmersHandModeLabel: string;
 }
 
-export interface ClubTableViewOptions {
+export interface ClubTablePublicKittyView {
+  readonly hiddenCardCount: number;
+  readonly upcard?: Card;
+}
+
+export interface ClubTableSummaryView {
+  readonly handNumber: number;
+  readonly scoreLabel: string;
+  readonly targetScore: number;
+  readonly phaseLabel: string;
+  readonly dealerLabel: string;
+  readonly activePlayerLabel: string;
+  readonly botDifficultyLabel: string;
+  readonly farmersHandModeLabel: string;
+  readonly upcardLabel: string;
+  readonly trumpLabel: string;
+  readonly makersLabel: string;
+  readonly trickScoreLabel: string;
+  readonly handResultText?: string;
+  readonly handPoints?: readonly [number, number];
+  readonly winnerTeam?: TeamIndex;
+  readonly passedOut: boolean;
+  readonly rules: RuleSummary;
+}
+
+export interface ClubTableMoveView {
+  readonly sequence: number;
+  readonly player?: PlayerIndex;
+  readonly label: string;
+}
+
+export interface BuildClubTableViewOptions {
   readonly showLatestCompletedTrick?: boolean;
 }
 
@@ -102,12 +136,18 @@ export interface ClubTableView {
   readonly trump?: Suit;
   readonly lonePlayer?: PlayerIndex;
   readonly sittingOutPartner?: PlayerIndex;
+  readonly farmersHandMode: FarmersHandMode;
   readonly scores: readonly [number, number];
   readonly tricksWon: readonly [number, number];
   readonly upcard?: Card;
   readonly kittyCardCount: number;
   readonly config: ClubTableConfigView;
   readonly status: ReturnType<typeof buildTableStatusView>;
+  readonly summary: ClubTableSummaryView;
+  readonly turnPrompt: TurnPrompt;
+  readonly turn: TurnPrompt;
+  readonly rules: RuleSummary;
+  readonly gameControls: AvailableGameControls;
   readonly scoreCards: ReturnType<typeof buildEuchreScoreCardViews>;
   readonly fiveCardScores: readonly [
     ReturnType<typeof buildFiveCardScoreView>,
@@ -119,22 +159,24 @@ export interface ClubTableView {
     readonly actionLabel: string;
     readonly helperText: string;
     readonly detailText?: string;
+    readonly mustDiscard: boolean;
   };
   readonly legal: ClubTableLegalView;
   readonly bids: readonly BidDecision[];
   readonly bidding: BiddingTimelineView;
+  readonly biddingTimeline: BiddingTimelineView;
   readonly currentTrick: CurrentTrickView;
-  readonly turn: ReturnType<typeof buildTurnPrompt>;
-  readonly rules: RuleSummary;
-  readonly gameControls: ReturnType<typeof getAvailableGameControls>;
+  readonly publicKitty: ClubTablePublicKittyView;
   readonly handResult?: ClubTableHandResultView;
   readonly activity: readonly ClubTableActivityView[];
+  readonly recentBotActions: readonly string[];
+  readonly moveHistory: readonly ClubTableMoveView[];
 }
 
 export function buildClubTableView(
   state: GameState,
   viewerSeat: PlayerIndex,
-  options: ClubTableViewOptions = {}
+  options: BuildClubTableViewOptions = {}
 ): ClubTableView {
   const seatViews = buildTableSeatViews(state);
   const handView = buildHumanHandView(state, viewerSeat);
@@ -145,6 +187,17 @@ export function buildClubTableView(
     showLatestCompleted: options.showLatestCompletedTrick
   });
   const bidding = buildBiddingTimeline(state);
+  const turn = buildTurnPrompt(state, viewerSeat);
+  const rules = viewerSafeRuleSummary(buildRuleSummary(state.config, {
+    events: state.moveLog.map((move) => ({ eventType: move.action.type, payload: move.action })),
+    initialDealer: state.handNumber <= 1 ? state.dealer : undefined
+  }));
+  const activity = state.moveLog.map((move) => ({
+    sequence: move.sequence,
+    actorSeat: move.player,
+    isBot: move.player !== undefined && move.player !== viewerSeat,
+    label: safeMoveLabel(move.action)
+  }));
 
   return {
     viewerSeat,
@@ -157,6 +210,7 @@ export function buildClubTableView(
     trump: state.trump,
     lonePlayer: state.lonePlayer,
     sittingOutPartner,
+    farmersHandMode: state.config.farmersHandMode,
     scores: [...state.scores],
     tricksWon: [...state.tricksWon],
     upcard: state.upcard ? cloneCard(state.upcard) : undefined,
@@ -171,7 +225,32 @@ export function buildClubTableView(
       ...status,
       scores: [...status.scores]
     },
-    scoreCards: buildEuchreScoreCardViews(state.scores),
+    summary: {
+      handNumber: state.handNumber,
+      scoreLabel: status.scoreLabel,
+      targetScore: state.config.targetScore,
+      phaseLabel: status.phaseLabel,
+      dealerLabel: status.dealerLabel,
+      activePlayerLabel: status.activePlayerLabel,
+      botDifficultyLabel: formatBotDifficulty(state.config.botDifficulty),
+      farmersHandModeLabel: formatFarmersHandMode(state.config.farmersHandMode),
+      upcardLabel: status.upcardLabel,
+      trumpLabel: status.trumpLabel,
+      makersLabel: status.makersLabel,
+      trickScoreLabel: status.trickScoreLabel,
+      handResultText: state.handResult || state.phase === "handComplete"
+        ? buildHandResultExplanation(state)
+        : undefined,
+      handPoints: state.handResult ? [...state.handResult.pointsAwarded] : undefined,
+      winnerTeam: gameWinner(state),
+      passedOut: state.phase === "handComplete" && !state.handResult,
+      rules: cloneRuleSummary(rules)
+    },
+    turnPrompt: { ...turn },
+    turn: { ...turn },
+    rules: cloneRuleSummary(rules),
+    gameControls: { ...getAvailableGameControls(state) },
+    scoreCards: cloneScoreCards(buildEuchreScoreCardViews(state.scores)),
     fiveCardScores: [
       buildFiveCardScoreView(state.scores[0], "red"),
       buildFiveCardScoreView(state.scores[1], "black")
@@ -189,13 +268,14 @@ export function buildClubTableView(
       isCaller: seat.isCaller,
       isPartnerOfCaller: seat.isPartnerOfCaller,
       isSittingOut: seat.seat === sittingOutPartner,
-      recentAction: seat.recentAction
+      recentAction: safeRecentAction(state, seat.seat)
     })),
     viewerHand: {
       cards: handView.cards.map(cloneTableCard),
       actionLabel: handView.actionLabel,
       helperText: handView.helperText,
-      detailText: handView.detailText
+      detailText: handView.detailText,
+      mustDiscard: handView.mustDiscard
     },
     legal: {
       canClaimFarmersHand: legal.canClaimFarmersHand,
@@ -210,19 +290,19 @@ export function buildClubTableView(
     },
     bids: state.bids.map((bid) => ({ ...bid })),
     bidding: cloneBiddingTimeline(bidding),
+    biddingTimeline: cloneBiddingTimeline(bidding),
     currentTrick: cloneCurrentTrick(currentTrick),
-    turn: { ...buildTurnPrompt(state, viewerSeat) },
-    rules: cloneRuleSummary(buildRuleSummary(state.config, {
-      events: state.moveLog.map((move) => ({ eventType: move.action.type, payload: move.action })),
-      initialDealer: state.handNumber <= 1 ? state.dealer : undefined
-    })),
-    gameControls: { ...getAvailableGameControls(state) },
+    publicKitty: {
+      hiddenCardCount: Math.max(0, state.kitty.length - (state.upcard ? 1 : 0)),
+      upcard: state.upcard ? cloneCard(state.upcard) : undefined
+    },
     handResult: state.handResult ? cloneHandResult(state.handResult, state) : undefined,
-    activity: state.moveLog.map((move) => ({
-      sequence: move.sequence,
-      actorSeat: move.player,
-      isBot: move.player !== undefined && move.player !== viewerSeat,
-      label: publicMoveLabel(move.action)
+    activity,
+    recentBotActions: activity.filter((item) => item.isBot).slice(-5).map((item) => item.label),
+    moveHistory: activity.map((item) => ({
+      sequence: item.sequence,
+      player: item.actorSeat,
+      label: item.label
     }))
   };
 }
@@ -259,14 +339,31 @@ function cloneBiddingTimeline(timeline: BiddingTimelineView): BiddingTimelineVie
   };
 }
 
-function cloneRuleSummary(summary: RuleSummary): RuleSummary {
+function viewerSafeRuleSummary(summary: RuleSummary): RuleSummary {
   return {
     ...summary,
+    config: { ...summary.config },
     seed: undefined,
     seedLabel: "Not exposed",
     items: summary.items.filter((item) => item.label !== "Seed").map((item) => ({ ...item })),
     warnings: [...summary.warnings]
   };
+}
+
+function cloneRuleSummary(summary: RuleSummary): RuleSummary {
+  return {
+    ...summary,
+    config: { ...summary.config },
+    items: summary.items.map((item) => ({ ...item })),
+    warnings: [...summary.warnings]
+  };
+}
+
+function cloneScoreCards(cards: ReturnType<typeof buildEuchreScoreCardViews>): ReturnType<typeof buildEuchreScoreCardViews> {
+  return cards.map((team) => ({
+    ...team,
+    cards: team.cards.map((card) => ({ ...card })) as typeof team.cards
+  })) as ReturnType<typeof buildEuchreScoreCardViews>;
 }
 
 function cloneHandResult(result: HandResult, state: GameState): ClubTableHandResultView {
@@ -283,35 +380,43 @@ function cloneHandResult(result: HandResult, state: GameState): ClubTableHandRes
   };
 }
 
-function publicMoveLabel(action: GameState["moveLog"][number]["action"]): string {
+function safeRecentAction(state: GameState, seat: PlayerIndex): string | undefined {
+  const move = [...state.moveLog].reverse().find((candidate) => candidate.player === seat);
+  return move ? safeMoveLabel(move.action) : undefined;
+}
+
+function safeMoveLabel(action: GameState["moveLog"][number]["action"]): string {
+  const actor = "player" in action ? TABLE_PLAYER_NAMES[action.player] : "Table";
+
   switch (action.type) {
     case "START_HAND":
       return "Started a new hand";
     case "NEXT_HAND":
       return "Dealt the next hand";
     case "FARMERS_HAND_DECLINE":
-      return `${playerLabel(action.player)} declined Farmer's Hand`;
+      return `${actor} declined Farmer's Hand`;
     case "FARMERS_HAND_REDEAL":
-      return `${playerLabel(action.player)} claimed a Farmer's Hand redeal`;
+      return `${actor} claimed a Farmer's Hand redeal`;
     case "FARMERS_HAND_REPLACE":
-      return `${playerLabel(action.player)} replaced ${action.cards.length} Farmer's Hand card${action.cards.length === 1 ? "" : "s"}`;
+      return `${actor} replaced ${action.cards.length} Farmer's Hand card${action.cards.length === 1 ? "" : "s"}`;
     case "PASS":
-      return `${playerLabel(action.player)} passed`;
+      return `${actor} passed`;
     case "ORDER_UP":
-      return `${playerLabel(action.player)} ordered up${action.alone ? " alone" : ""}`;
+      return `${actor} ordered up${action.alone ? " alone" : ""}`;
     case "CALL_TRUMP":
-      return `${playerLabel(action.player)} called ${action.suit}${action.alone ? " alone" : ""}`;
+      return `${actor} called ${action.suit}${action.alone ? " alone" : ""}`;
     case "DISCARD":
-      return `${playerLabel(action.player)} discarded after pickup`;
+      return `${actor} discarded after pickup`;
     case "PLAY_CARD":
-      return `${playerLabel(action.player)} played ${cardLabel(action.card)}`;
+      return `${actor} played ${cardLabel(action.card)}`;
     case "RESET_GAME":
       return "Reset the local table";
   }
 }
 
-function playerLabel(player: PlayerIndex): string {
-  return ["South", "West", "North", "East"][player];
+function gameWinner(state: GameState): TeamIndex | undefined {
+  if (state.phase !== "gameComplete") return undefined;
+  return state.scores[0] >= state.config.targetScore ? 0 : 1;
 }
 
 function cloneCard(card: Card): Card {
