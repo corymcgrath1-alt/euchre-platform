@@ -126,7 +126,7 @@ function buildGameHistoryRow(source: ProfileReviewSource, seat: PlayerIndex, tea
     successfulLoners: seatStats.successfulLoners,
     handsPlayed: review.totalHandsPlayed,
     ruleSummary: review.ruleSummary,
-    reviewHref: `/api/games/${review.gameId}/review`
+    reviewHref: `/club/replay/${review.gameId}`
   };
 }
 

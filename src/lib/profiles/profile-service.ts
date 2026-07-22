@@ -2,7 +2,7 @@ import { getEventStore } from "@/lib/persistence/event-store";
 import type { EventStore } from "@/lib/persistence/types";
 import { buildGameReview } from "@/lib/review/game-review";
 import type { PlayerIndex } from "@/lib/euchre";
-import { buildProfileAggregates, type ProfileAggregateSummary } from "./profile-aggregates";
+import { buildProfileAggregates, LOCAL_PLAYER_PROFILES, type ProfileAggregateSummary } from "./profile-aggregates";
 import {
   buildPlayerProfileDetail,
   type PlayerProfileDetail,
@@ -56,4 +56,16 @@ export async function loadProfileProjectionBundle(
     summary: buildProfileAggregates(sources.map((source) => source.review)),
     profile: buildPlayerProfileDetail(sources, seat)
   };
+}
+
+export function localProfileSeat(profileId: string): PlayerIndex | undefined {
+  return ([0, 1, 2, 3] as const).find((seat) => LOCAL_PLAYER_PROFILES[seat].id === profileId);
+}
+
+export async function loadProfileProjectionById(
+  profileId: string,
+  eventStore: EventStore = getEventStore()
+): Promise<ProfileProjectionBundle | undefined> {
+  const seat = localProfileSeat(profileId);
+  return seat === undefined ? undefined : loadProfileProjectionBundle(seat, eventStore);
 }

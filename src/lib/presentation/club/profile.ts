@@ -39,6 +39,40 @@ export interface ClubProfileDashboardView {
   recentGames: ClubProfileGameView[];
 }
 
+export interface ClubProfileDetailView {
+  authentication: "local-unauthenticated";
+  profileId: string;
+  displayName: string;
+  seatLabel: string;
+  partnershipLabel: string;
+  isEmpty: boolean;
+  career: {
+    gamesPlayed: number;
+    wins: number;
+    losses: number;
+    winPercentage: number;
+    pointsScored: number;
+    pointsAllowed: number;
+    handsPlayed: number;
+    timesDealer: number;
+    successfulCalls: number;
+    failedCalls: number;
+    callSuccessPercentage: number;
+    tricksWon: number;
+    loneAttempts: number;
+    successfulLoners: number;
+  };
+  games: Array<{
+    gameId: string;
+    result: "win" | "loss";
+    pointsScored: number;
+    pointsAllowed: number;
+    handsPlayed: number;
+    completedAt?: string;
+    replayHref: string;
+  }>;
+}
+
 export function buildClubProfileDashboardView(
   summary: ProfileAggregateSummary,
   profile: PlayerProfileDetail
@@ -73,6 +107,42 @@ export function buildClubProfileDashboardView(
       pointsAllowed: game.pointsAllowed,
       completedAt: game.completedAt,
       handsPlayed: game.handsPlayed
+    }))
+  };
+}
+
+export function buildClubProfileDetailView(profile: PlayerProfileDetail): ClubProfileDetailView {
+  return {
+    authentication: "local-unauthenticated",
+    profileId: profile.profileId,
+    displayName: profile.name,
+    seatLabel: seatLabel(profile.seat),
+    partnershipLabel: partnershipLabel(profile.team),
+    isEmpty: profile.gameHistory.length === 0,
+    career: {
+      gamesPlayed: profile.career.gamesPlayed,
+      wins: profile.career.wins,
+      losses: profile.career.losses,
+      winPercentage: profile.career.winPercentage,
+      pointsScored: profile.career.pointsScored,
+      pointsAllowed: profile.career.pointsAllowed,
+      handsPlayed: profile.career.handsPlayed,
+      timesDealer: profile.career.timesDealer,
+      successfulCalls: profile.career.successfulCalls,
+      failedCalls: profile.career.failedCalls,
+      callSuccessPercentage: profile.career.callSuccessPercentage,
+      tricksWon: profile.career.tricksWon,
+      loneAttempts: profile.career.loneAttempts,
+      successfulLoners: profile.career.successfulLoners
+    },
+    games: profile.gameHistory.map((game) => ({
+      gameId: game.gameId,
+      result: game.result,
+      pointsScored: game.pointsScored,
+      pointsAllowed: game.pointsAllowed,
+      handsPlayed: game.handsPlayed,
+      completedAt: game.completedAt,
+      replayHref: game.reviewHref
     }))
   };
 }

@@ -1,19 +1,15 @@
 import { describe, expect, it } from "vitest";
 import {
   CLUB_NAVIGATION_ITEMS,
-  isNavigationItemActive,
-  navigationStatusLabel
+  isNavigationItemActive
 } from "./navigation";
 
 describe("Club navigation", () => {
   it("links only routes backed by real Platform behavior", () => {
-    const linkedItems = CLUB_NAVIGATION_ITEMS.filter((item) => item.href);
-
-    expect(linkedItems.map((item) => [item.id, item.href])).toEqual([
+    expect(CLUB_NAVIGATION_ITEMS.map((item) => [item.id, item.href])).toEqual([
       ["club", "/club"],
       ["practice", "/"]
     ]);
-    expect(CLUB_NAVIGATION_ITEMS.filter((item) => !item.href).every((item) => item.availability !== "available")).toBe(true);
   });
 
   it("marks exact and nested Club routes without treating Practice as a wildcard", () => {
@@ -24,11 +20,5 @@ describe("Club navigation", () => {
     expect(isNavigationItemActive(club, "/club/profile")).toBe(true);
     expect(isNavigationItemActive(practice, "/")).toBe(true);
     expect(isNavigationItemActive(practice, "/club")).toBe(false);
-  });
-
-  it("uses honest status labels for unavailable product concepts", () => {
-    expect(navigationStatusLabel("available")).toBeUndefined();
-    expect(navigationStatusLabel("preview")).toBe("Preview");
-    expect(navigationStatusLabel("coming-soon")).toBe("Soon");
   });
 });

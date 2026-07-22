@@ -262,7 +262,7 @@ describe("API route validation", () => {
     expect(body.profile.gameHistory[0]).toMatchObject({
       gameId: game.id,
       result: "win",
-      reviewHref: `/api/games/${game.id}/review`
+      reviewHref: `/club/replay/${game.id}`
     });
     expect(body.profile.trends.last5GamesRecord).toMatchObject({
       games: 1,

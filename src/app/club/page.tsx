@@ -1,4 +1,4 @@
-import type { Metadata } from "next";
+import type { Metadata, Route } from "next";
 import Link from "next/link";
 import { loadProfileProjectionBundle } from "@/lib/profiles/profile-service";
 import { buildClubProfileDashboardView } from "@/lib/presentation/club/profile";
@@ -27,7 +27,10 @@ export default async function ClubPage() {
             {view.seatLabel} seat · {view.partnershipLabel} partnership
           </p>
         </div>
-        <Link className={styles.practiceLink} href="/">Play Practice</Link>
+        <div className={styles.introActions}>
+          <Link className={styles.secondaryLink} href={`/club/profile/${view.profileId}` as Route}>Profile detail</Link>
+          <Link className={styles.practiceLink} href="/">Play Practice</Link>
+        </div>
       </section>
 
       <section className={styles.sessionBand} aria-label="Profile session status">
@@ -87,6 +90,7 @@ export default async function ClubPage() {
                 <strong>{game.pointsScored} - {game.pointsAllowed}</strong>
                 <span>{game.handsPlayed} hands</span>
                 <span>{formatCompletedAt(game.completedAt)}</span>
+                <Link className={styles.historyLink} href={`/club/replay/${game.gameId}` as Route}>Replay</Link>
               </li>
             ))}
           </ol>

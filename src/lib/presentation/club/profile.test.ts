@@ -3,7 +3,7 @@ import { buildRuleSummary } from "@/lib/euchre";
 import { buildProfileAggregates } from "@/lib/profiles/profile-aggregates";
 import { buildPlayerProfileDetail } from "@/lib/profiles/profile-detail";
 import type { GameReview, SeatReviewStats, TeamReviewStats } from "@/lib/review/game-review";
-import { buildClubProfileDashboardView } from "./profile";
+import { buildClubProfileDashboardView, buildClubProfileDetailView } from "./profile";
 
 describe("Club profile presentation", () => {
   it("maps only completed-review aggregates into the dashboard", () => {
@@ -61,6 +61,28 @@ describe("Club profile presentation", () => {
       performance: { callSuccess: 0, makerSuccess: 0, euchresEarned: 0, euchresSuffered: 0 },
       recentGames: []
     });
+  });
+
+  it("maps persisted profile detail and native replay links without synthetic fields", () => {
+    const review = makeReview();
+    const profile = buildPlayerProfileDetail([{
+      review,
+      createdAt: "2026-01-01T00:00:00.000Z",
+      completedAt: "2026-01-02T00:00:00.000Z"
+    }], 0);
+    const before = JSON.stringify(profile);
+
+    const view = buildClubProfileDetailView(profile);
+
+    expect(view).toMatchObject({
+      authentication: "local-unauthenticated",
+      profileId: "local-seat-0",
+      isEmpty: false,
+      career: { gamesPlayed: 1, wins: 1, losses: 0, tricksWon: 9 },
+      games: [{ gameId: "persisted-game", replayHref: "/club/replay/persisted-game" }]
+    });
+    expect(JSON.stringify(view)).not.toMatch(/rating|rank|badge|tournament/i);
+    expect(JSON.stringify(profile)).toBe(before);
   });
 });
 

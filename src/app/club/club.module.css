@@ -20,6 +20,12 @@
   padding-bottom: 1.75rem;
 }
 
+.introActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.65rem;
+}
+
 .eyebrow {
   margin: 0 0 0.45rem;
   color: var(--club-brass-soft);
@@ -185,13 +191,23 @@
 
 .historyRow {
   display: grid;
-  grid-template-columns: 4rem 5rem minmax(6rem, 1fr) minmax(10rem, auto);
+  grid-template-columns: 4rem 5rem minmax(6rem, 1fr) minmax(10rem, auto) auto;
   align-items: center;
   gap: 1rem;
   min-height: 3.8rem;
   border-bottom: 1px solid rgb(255 255 255 / 8%);
   color: var(--club-ivory-muted);
   font-size: 0.82rem;
+}
+
+.historyLink {
+  color: var(--club-brass-soft);
+  font-weight: 750;
+  text-decoration: none;
+}
+
+.historyLink:hover {
+  text-decoration: underline;
 }
 
 .historyRow strong {
@@ -310,6 +326,14 @@
     width: 100%;
   }
 
+  .introActions {
+    width: 100%;
+  }
+
+  .introActions .secondaryLink {
+    flex: 1 1 auto;
+  }
+
   .sourceBadge {
     white-space: normal;
   }
@@ -326,6 +350,10 @@
   }
 
   .historyRow span:last-child {
+    grid-column: 2 / -1;
+  }
+
+  .historyLink {
     grid-column: 2 / -1;
   }
 }
