@@ -14,7 +14,7 @@ permissions:
 
 jobs:
   apply-milestone:
-    if: github.event_name == 'push' && github.actor != 'github-actions[bot]'
+    if: github.event_name == 'push' && github.event.head_commit.message == 'chore(ci): enable staged milestone apply'
     runs-on: ubuntu-latest
     steps:
       - name: Check out branch
@@ -35,7 +35,8 @@ jobs:
           set -euo pipefail
           npm install --package-lock-only --ignore-scripts --no-audit --no-fund
           rm -rf .github/codex
-          git add package-lock.json .github/codex
+          git add package-lock.json
+          git add -u .github/codex
           if ! git diff --cached --quiet; then
             git commit -m "chore(deps): update Playwright lockfile"
           fi
