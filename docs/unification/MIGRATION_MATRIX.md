@@ -9,9 +9,9 @@ The source comparison covers Club `main` at `78b4b256`, Practice at `875f6adf`, 
 | Game state | Typed `GameState` reconstructed from move events | `GameStateView` is a UI model; Ranked adds private canonical state | Superseded by Platform | Keep Platform state; add pure view adapters |
 | Bots | Deterministic easy/standard/strong and versioned policies | Practice branch ports Platform bots | Superseded by Platform | Keep Platform bots and seeds |
 | Persistence | Local filesystem and Supabase event stores with expected sequence | Practice browser store; Ranked private canonical tables | Platform remains canonical | Preserve append-only store; later harden server transaction boundary |
-| Replays | Reviews and replay selection derived from immutable events | Stronger replay route and controls in Practice branch | Adapt and rewrite | Native Next.js replay route over Platform `GameReview` |
-| Profiles | Completed-game review aggregates and detail projections | Default branch uses fictional identity/rating/history | Platform truth with Club presentation | Map real Platform aggregates; explicit local/empty state |
-| Table UI | Functional table-first single-player page | Stronger felt/brass/oxblood composition and responsive hierarchy | Adapt and rewrite | Native components consuming Platform table projections |
+| Replays | Reviews and replay selection derived from immutable events | Stronger replay route and controls in Practice branch | Adapted natively | `/club/replay/[reviewId]` reduces immutable Platform events and serializes one viewer-safe step |
+| Profiles | Completed-game review aggregates and detail projections | Default branch uses fictional identity/rating/history | Platform truth with Club presentation | `/club/profile/[profileId]` maps persisted aggregates and completed review links |
+| Table UI | Authoritative Practice controller plus table projections | Stronger felt/brass/oxblood composition and responsive hierarchy | Adapted natively | Dedicated Practice modules consume `ClubTableView`; only the controller and adapter see `GameState` |
 | Navigation | Single route | Strong route vocabulary and application shell | Port visual concept | Compact native Next.js shell; only real routes are links |
 | Practice | Complete persisted match against deterministic bots | Real in Practice branch; fake in default demo | Superseded by Platform | Preserve Platform behavior and restyle incrementally |
 | Private tables | Not implemented | Product concept only | Requires later service | Disabled until authenticated room/event service exists |
@@ -22,7 +22,7 @@ The source comparison covers Club `main` at `78b4b256`, Practice at `875f6adf`, 
 | Leaderboards | Not implemented | Fictional preview rows | Preserve only as requirement | Disabled preview; never expose mock rows as real |
 | Tournaments | Not implemented | Fictional brackets/registration | Preserve only as requirement | Defer to tournament service after Ranked |
 | Decks and cosmetics | Standard readable cards | Broad visual catalog and ownership concepts | Adapt later | Migrate catalog metadata only after ownership/storage exists |
-| Tests | 238 engine/API/store/replay/profile tests plus simulations | Browser and disposable-Supabase coverage on feature branches | Combine patterns, not runtimes | Add native adapter/UI tests; later add Next.js browser CI |
+| Tests | Engine/API/store/replay/profile suites plus simulations | Browser and disposable-Supabase coverage on feature branches | Combine patterns, not runtimes | Native visibility/immutability tests and built Next.js Playwright coverage; no hosted dependency |
 | Deployment | Next.js production build; optional Supabase event store | TanStack/Nitro and guarded Supabase scripts | Platform-only deployment | Do not import TanStack/Vite/Nitro configuration |
 | Security | Command/event boundary documented; local API is not authenticated | Ranked JWT, RLS, private Realtime, redaction, CORS gates | Adapt later | Preserve patterns in multiplayer ADR; no current live claim |
 | Observability | Not yet structured | Ranked redacted request/version/result logs | Adapt later | Add at authoritative multiplayer boundary, excluding private cards/secrets |

@@ -2,15 +2,15 @@
 
 ## Route Order
 
-1. `/club`: real local profile dashboard and compact Club shell.
-2. `/`: existing authoritative Practice table, incrementally restyled.
-3. `/replays/[gameId]`: immutable review-backed replay.
-4. `/profile/[seat]`: real aggregate detail.
+1. `/club`: real local profile dashboard and compact Club shell. Complete.
+2. `/`: authoritative Practice table with viewer-safe native modules. Complete.
+3. `/club/replay/[reviewId]`: immutable event-backed replay. Complete for local Practice.
+4. `/club/profile/[profileId]`: real aggregate detail. Complete for local Practice profiles.
 5. `/rooms/*`: authenticated private rooms and invites.
 6. `/ranked/*`: server-authoritative Ranked Solo behind fail-closed gates.
 7. Fixed Partners, leaderboards/seasons, tournaments, then cosmetics.
 
-Unimplemented routes are disabled navigation labels or honest specification pages. They must not use Club mock data.
+Unimplemented routes do not appear in primary navigation. They remain roadmap requirements and must not use Club mock data.
 
 ## Multiplayer Service Roadmap
 
@@ -38,11 +38,11 @@ Acceptance: move the existing client implementation behind a feature component w
 
 ### WP3: Club Table Components
 
-Acceptance: split setup, seats, scores, trick, hand, bidding, status, and persistence feedback into components consuming Platform projections. Snapshot command transcripts before and after; test legal controls and hidden cards.
+Status: complete. Setup, seats, scores, trick, hand, bidding, status, review, profile summary, and persistence feedback are separate modules consuming viewer-safe projections. Tests cover legal controls, viewer orientation, hidden cards, private discards, seed removal, and source immutability.
 
 ### WP4: Native Replay And Profile Routes
 
-Acceptance: routes use immutable event reviews and real aggregates, support deterministic navigation and honest empty/error states, and contain no analysis or mock match data.
+Status: complete for local Practice. Routes use immutable events and real aggregates, support deterministic replay navigation and honest loading/empty/error/not-found states, and contain no analysis or mock match data.
 
 ### WP5: Authenticated Private Rooms
 
