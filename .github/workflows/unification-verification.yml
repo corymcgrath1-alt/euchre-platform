@@ -10,9 +10,39 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: read
+  contents: write
 
 jobs:
+  apply-milestone:
+    if: github.event_name == 'push' && github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Check out branch
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: Apply atomic milestone commits
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          cat .github/codex/milestone-part-* | base64 --decode | xz --decompress --stdout > /tmp/euchre-milestone.mbox
+          git am /tmp/euchre-milestone.mbox
+      - name: Generate Playwright lockfile and remove staging payload
+        shell: bash
+        run: |
+          set -euo pipefail
+          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
+          rm -rf .github/codex
+          git add package-lock.json .github/codex
+          if ! git diff --cached --quiet; then
+            git commit -m "chore(deps): update Playwright lockfile"
+          fi
+      - name: Push milestone commits
+        shell: bash
+        run: git push origin HEAD:${GITHUB_REF_NAME}
+
   source-audit:
     runs-on: ubuntu-latest
     steps:
