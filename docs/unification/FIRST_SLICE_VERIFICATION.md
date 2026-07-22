@@ -1,5 +1,7 @@
 # First Unification Slice Verification
 
+> Historical baseline: this record describes the first shell/dashboard slice at commit `ebf03217`. The current Practice decomposition, replay/profile routes, browser coverage, and verification are recorded in `PRACTICE_REPLAY_PROFILE_MILESTONE.md`.
+
 ## Repository Evidence
 
 - Platform base: `d36515aef6366155698b6d91df7b328605589bf5` (`codex/practice-vertical-slice-hardening`).
