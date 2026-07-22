@@ -10,60 +10,60 @@ on:
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
+
+concurrency:
+  group: unification-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 jobs:
-  apply-milestone:
-    if: github.event_name == 'push' && github.event.head_commit.message == 'chore(ci): enable staged milestone apply'
+  verify:
     runs-on: ubuntu-latest
+    timeout-minutes: 25
     steps:
-      - name: Check out branch
+      - name: Check out source
         uses: actions/checkout@v4
-        with:
-          fetch-depth: 0
-      - name: Apply atomic milestone commits
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          cat .github/codex/milestone-part-* | base64 --decode | xz --decompress --stdout > /tmp/euchre-milestone.mbox
-          git am /tmp/euchre-milestone.mbox
-      - name: Generate Playwright lockfile and remove staging payload
-        shell: bash
-        run: |
-          set -euo pipefail
-          npm install --package-lock-only --ignore-scripts --no-audit --no-fund
-          rm -rf .github/codex
-          git add package-lock.json
-          git add -u .github/codex
-          if ! git diff --cached --quiet; then
-            git commit -m "chore(deps): update Playwright lockfile"
-          fi
-      - name: Push milestone commits
-        shell: bash
-        run: git push origin HEAD:${GITHUB_REF_NAME}
 
-  source-audit:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Check out branch
-        uses: actions/checkout@v4
-      - name: Upload source snapshot
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Install Playwright Chrome
+        run: npx playwright install --with-deps chrome
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit and integration tests
+        run: npm run test
+
+      - name: Build production application
+        run: npm run build
+
+      - name: Built-runtime browser tests
+        run: npm run e2e
+
+      - name: Run 10,000 deterministic simulations
+        run: npm run simulate -- --games 10000 --seed 12345 --target-score 10 --stick-dealer true
+
+      - name: Run 10,000 strict playtests
+        run: npm run playtest -- --games 10000 --seed 12345 --target-score 10 --stick-dealer true --bot-policy intermediate-v1 --invariants strict --out playtest-results/ci-unification
+
+      - name: Upload browser diagnostics on failure
+        if: failure()
         uses: actions/upload-artifact@v4
         with:
-          name: source-snapshot
-          if-no-files-found: error
-          retention-days: 1
+          name: unification-browser-diagnostics
+          if-no-files-found: ignore
+          retention-days: 5
           path: |
-            .github
-            docs
-            migrations
-            scripts
-            src
-            *.json
-            *.mjs
-            *.ts
-            *.yaml
-            *.yml
-            README.md
+            .data/playwright-report
+            .data/playwright-results
