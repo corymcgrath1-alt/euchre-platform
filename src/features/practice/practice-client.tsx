@@ -4,19 +4,13 @@ import { useCallback, useEffect, useMemo, useRef, useState, type Dispatch, type 
 import {
   cardId,
   cardLabel,
-  BOT_DIFFICULTIES,
-  DEALER_SELECTIONS,
-  FARMERS_HAND_MODES,
-  LONER_MODES,
   TARGET_SCORES,
   buildRuleSummary,
   chooseBotAction,
   createDefaultBotProfiles,
   createInitialGameState,
   formatBotDifficulty,
-  formatDealerSelection,
   formatFarmersHandMode,
-  formatLonerMode,
   buildHandResultExplanation,
   buildCurrentTrickView,
   buildBiddingTimeline,
@@ -75,6 +69,7 @@ import {
 } from "@/lib/review/review-drilldown";
 import type { ProfileAggregateSummary } from "@/lib/profiles/profile-aggregates";
 import type { PlayerProfileDetail, ProfileGameHistoryRow, ProfileTrendStats, TrendRecord } from "@/lib/profiles/profile-detail";
+import { PracticeSetupToolbar } from "./practice-setup-toolbar";
 
 const STORAGE_KEY = "euchre-platform-active-game-id";
 const PLAYER_NAMES: Record<PlayerIndex, string> = {
@@ -420,136 +415,30 @@ export default function PracticeClient() {
   return (
     <main className="min-h-screen bg-[#071411]">
       <section className="mx-auto flex w-full max-w-[118rem] flex-col gap-2 px-2 py-2 sm:px-3 lg:px-4">
-        <header className={`flex flex-col gap-2 border-b border-white/10 pb-2 lg:flex-row lg:items-end lg:justify-between ${
-          inPlayMode ? "lg:items-center" : ""
-        }`}>
-          <div>
-            <p className="text-[11px] font-semibold uppercase tracking-[0.18em] text-brass">Phase 1 foundation</p>
-            <h1 className={`${inPlayMode ? "mt-0 text-xl sm:text-2xl" : "mt-1 text-2xl sm:text-3xl"} font-semibold text-white`}>
-              Euchre Platform
-            </h1>
-            <p className="mt-0.5 text-xs text-white/55">You are South. West, North, and East are deterministic bots.</p>
-          </div>
-
-          <div className="flex flex-wrap items-center gap-2">
-            <label className={`${inPlayMode ? "hidden" : "flex"} items-center gap-2 rounded border border-white/15 bg-white/5 px-3 py-2 text-sm text-white`}>
-              Target
-              <select
-                className="rounded border border-white/15 bg-[#071411] px-2 py-1 text-white"
-                value={targetScore}
-                disabled={state.phase !== "idle"}
-                onChange={(event) => setTargetScore(Number(event.target.value) as TargetScore)}
-              >
-                {TARGET_SCORES.map((score) => (
-                  <option key={score} value={score}>
-                    {score}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className={`${inPlayMode ? "hidden" : "flex"} items-center gap-2 rounded border border-white/15 bg-white/5 px-3 py-2 text-sm text-white`}>
-              Bot difficulty
-              <select
-                className="rounded border border-white/15 bg-[#071411] px-2 py-1 text-white"
-                value={botDifficulty}
-                disabled={state.phase !== "idle"}
-                onChange={(event) => updateBotDifficulty(event.target.value as BotDifficulty)}
-              >
-                {BOT_DIFFICULTIES.map((difficulty) => (
-                  <option key={difficulty} value={difficulty}>
-                    {formatBotDifficulty(difficulty)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className={`${inPlayMode ? "hidden" : "flex"} items-center gap-2 rounded border border-white/15 bg-white/5 px-3 py-2 text-sm text-white`}>
-              Dealer
-              <select
-                className="rounded border border-white/15 bg-[#071411] px-2 py-1 text-white"
-                value={dealerSelection}
-                disabled={state.phase !== "idle"}
-                onChange={(event) => setDealerSelection(event.target.value as DealerSelection)}
-              >
-                {DEALER_SELECTIONS.map((selection) => (
-                  <option key={selection} value={selection}>
-                    {formatDealerSelection(selection)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className={`${inPlayMode ? "hidden" : "flex"} items-center gap-2 rounded border border-white/15 bg-white/5 px-3 py-2 text-sm text-white`}>
-              <input
-                type="checkbox"
-                checked={stickDealer}
-                disabled={state.phase !== "idle"}
-                onChange={(event) => setStickDealer(event.target.checked)}
-              />
-              Stick dealer
-            </label>
-            <label className={`${inPlayMode ? "hidden" : "flex"} items-center gap-2 rounded border border-white/15 bg-white/5 px-3 py-2 text-sm text-white`}>
-              Farmer
-              <select
-                className="rounded border border-white/15 bg-[#071411] px-2 py-1 text-white"
-                value={farmersHandMode}
-                disabled={state.phase !== "idle"}
-                onChange={(event) => setFarmersHandMode(event.target.value as FarmersHandMode)}
-              >
-                {FARMERS_HAND_MODES.map((mode) => (
-                  <option key={mode} value={mode}>
-                    {formatFarmersHandMode(mode)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className={`${inPlayMode ? "hidden" : "flex"} items-center gap-2 rounded border border-white/15 bg-white/5 px-3 py-2 text-sm text-white`}>
-              Loner
-              <select
-                className="rounded border border-white/15 bg-[#071411] px-2 py-1 text-white"
-                value={lonerMode}
-                disabled={state.phase !== "idle"}
-                onChange={(event) => setLonerMode(event.target.value as LonerMode)}
-              >
-                {LONER_MODES.map((mode) => (
-                  <option key={mode} value={mode}>
-                    {formatLonerMode(mode)}
-                  </option>
-                ))}
-              </select>
-            </label>
-            <label className={`${inPlayMode ? "hidden" : "flex"} items-center gap-2 rounded border border-white/15 bg-white/5 px-3 py-2 text-sm text-white`}>
-              Seed
-              <input
-                className="w-28 rounded border border-white/15 bg-[#071411] px-2 py-1 text-white"
-                value={seedInput}
-                disabled={state.phase !== "idle"}
-                inputMode="numeric"
-                placeholder={lastSeed === null ? "auto" : String(lastSeed)}
-                onChange={(event) => setSeedInput(event.target.value)}
-              />
-            </label>
-            <button
-              className={`${inPlayMode ? "hidden" : ""} rounded border border-white/20 px-3 py-2 text-sm font-semibold text-white`}
-              onClick={copySeed}
-              type="button"
-            >
-              Copy seed
-            </button>
-            {inPlayMode ? (
-              <div className="rounded border border-white/10 bg-white/[0.04] px-3 py-2 text-xs text-white/60">
-                <span className="font-semibold text-white">Hand {state.handNumber}</span>
-                <span className="mx-2 text-white/25">|</span>
-                Team 0 {state.scores[0]} - {state.scores[1]} Team 1
-              </div>
-            ) : null}
-            <button
-              className="rounded bg-brass px-4 py-2 text-sm font-semibold text-[#201602]"
-              disabled={isSaving}
-              onClick={state.phase === "idle" ? startNewGame : confirmStartNewGame}
-            >
-              {state.phase === "idle" ? "Start hand" : "Start New Game"}
-            </button>
-          </div>
-        </header>
+        <PracticeSetupToolbar
+          inPlayMode={inPlayMode}
+          phase={state.phase}
+          handNumber={state.handNumber}
+          scores={state.scores}
+          targetScore={targetScore}
+          botDifficulty={botDifficulty}
+          dealerSelection={dealerSelection}
+          stickDealer={stickDealer}
+          farmersHandMode={farmersHandMode}
+          lonerMode={lonerMode}
+          seedInput={seedInput}
+          lastSeed={lastSeed}
+          isSaving={isSaving}
+          onTargetScoreChange={setTargetScore}
+          onBotDifficultyChange={updateBotDifficulty}
+          onDealerSelectionChange={setDealerSelection}
+          onStickDealerChange={setStickDealer}
+          onFarmersHandModeChange={setFarmersHandMode}
+          onLonerModeChange={setLonerMode}
+          onSeedInputChange={setSeedInput}
+          onCopySeed={copySeed}
+          onStartGame={state.phase === "idle" ? startNewGame : confirmStartNewGame}
+        />
 
         {state.phase === "idle" ? (
           <SetupHelp
