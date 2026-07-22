@@ -6,7 +6,7 @@ Before this milestone, `practice-client.tsx` contained table layout, seat identi
 
 After the refactor, raw authoritative state is limited to:
 
-- `PracticeClient`, the trusted local Practice command/bot/persistence orchestrator;
+- the server-side local Practice command route and Platform persistence service;
 - `buildClubTableView`, the one viewer-safe table adapter;
 - replay reconstruction on the server, where cloned persisted events are applied through the Platform engine before safe projection;
 - engine, persistence, review, and test code that owns canonical truth.
@@ -17,7 +17,7 @@ No Practice presentational module receives `GameState`, all hands, kitty card id
 
 | Module | Responsibility | Input boundary |
 | --- | --- | --- |
-| `practice-client.tsx` | Canonical local orchestration, bot timing, command persistence, resume | `GameState`; never passed to child modules |
+| `practice-client.tsx` | Safe-view orchestration, bot pacing, command submission, resume | `ClubTableView` plus event count; no active `GameState` |
 | `practice-table.tsx` | Table composition | `ClubTableView`, disabled flag, command callbacks |
 | `practice-seats.tsx` | Viewer-relative seats, identity, card backs, role badges | Safe seat and bid decision views |
 | `practice-bidding.tsx` | Bid timeline and engine-projected controls | Safe bidding/legal projections |
@@ -34,13 +34,14 @@ The action callback contract is centralized in `practice-actions.ts`. Components
 
 ## Viewer-Safe Table Flow
 
-1. The local controller holds the current Platform `GameState`.
-2. `buildClubTableView` calls existing Platform projections and `legalActionsForPlayer`.
-3. The adapter clones the viewer hand and public cards, replaces opponent hands with counts, omits kitty identities, removes hidden discard/replacement identities, and removes deterministic seeds.
-4. Viewer-relative positions are derived without changing real seats or teams.
-5. Presentational modules receive only the immutable-shaped result and narrow callbacks.
+1. `/api/games/[gameId]/practice` loads canonical state from the append-only Platform event store.
+2. Human commands are restricted to local seat 0; `BOT_MOVE` derives the active bot action server-side from canonical state.
+3. `buildClubTableView` calls existing Platform projections and `legalActionsForPlayer`.
+4. The adapter clones the viewer hand and public cards, replaces opponent hands with counts, omits kitty identities, removes hidden discard/replacement identities, and removes deterministic seeds.
+5. The route returns the safe view and event count; `PracticeClient` schedules presentation pacing and submits the next narrow command.
+6. Viewer-relative positions are derived without changing real seats or teams.
 
-The local Practice controller is intentionally a browser-local trusted runtime. It is not reused as a multiplayer authority. Hosted rooms require authenticated server-side command execution and viewer filtering before transport.
+The local Practice endpoint has no authenticated actor or room membership and is not reused as a multiplayer authority. Hosted rooms require authenticated server-side actor/seat derivation, idempotent command receipts, and viewer filtering before transport.
 
 ## Immutable Replay Flow
 
@@ -71,6 +72,7 @@ The server resolves only one of the four existing local Practice profile IDs, bu
 - Different viewer seats produce different hands with stable relative orientation.
 - Replay pages serialize one filtered step, not the full event stream or future table states.
 - Legal card IDs and bid options originate from Platform legality projections.
+- Routine Practice responses contain the safe projection, not canonical state or event history.
 
 ## Routes And Availability
 
@@ -96,7 +98,7 @@ Final verification was run on 2026-07-22 with Next.js 15.5.19, Vitest 2.1.9, Pla
 | formatter | Not run because the repository has no formatter script |
 | `npm.cmd run typecheck` | Passed |
 | `npm.cmd run lint` | Passed |
-| `npm.cmd run test` | Passed; 27 files and 254 tests |
+| `npm.cmd run test` | Passed; 27 files and 257 tests |
 | `npm.cmd run build` | Passed; optimized Next.js production build with `/`, `/club`, profile detail, replay, API routes, and icon |
 | `npm.cmd run e2e` | Passed; 5 built-runtime Chromium tests |
 | `npm.cmd run simulate -- --games 10000 --seed 12345 --target-score 10 --stick-dealer true` | Passed; 10,000 games, 117,558 hands, 0 illegal moves, 0 failed games |

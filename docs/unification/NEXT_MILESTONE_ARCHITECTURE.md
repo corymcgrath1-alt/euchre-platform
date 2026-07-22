@@ -16,7 +16,7 @@ Profiles are fixed local Practice-seat projections derived only from completed p
 
 ## Module map
 
-The Practice route remains a thin route boundary around a client controller. The controller may retain authoritative `GameState` solely to dispatch Platform commands and schedule bots. Presentation is split into narrow modules:
+The Practice route remains a thin route boundary around a client controller. The controller retains only `ClubTableView` and an event count. `/api/games/[gameId]/practice` loads authoritative state, validates local-seat commands, chooses deterministic bot commands, appends events, and returns the filtered projection. Presentation is split into narrow modules:
 
 - `practice-table`: composition of the safe table projection.
 - `practice-seats`: seat identity, dealer/turn/caller badges, and hidden-card backs.
@@ -31,7 +31,7 @@ Presentational modules receive `ClubTableView` slices, explicit display primitiv
 
 ## Table data flow
 
-`GameState` -> `buildClubTableView(state, viewerSeat)` -> readonly viewer-safe projection -> Practice presentation modules.
+Persisted events -> server-side `GameState` -> `buildClubTableView(state, viewerSeat)` -> readonly viewer-safe response -> Practice controller and presentation modules.
 
 The adapter is responsible for:
 

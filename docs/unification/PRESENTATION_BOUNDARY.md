@@ -35,6 +35,6 @@ Tests must prove deterministic output, source immutability, legal-card pass-thro
 
 ## Practice Controller Boundary
 
-`PracticeClient` remains the trusted local Practice orchestrator. It owns canonical state so it can submit Platform commands, schedule deterministic bots, and resume the append-only local game. Its child modules receive `ClubTableView`, replay/profile projections, explicit primitives, and narrow callbacks only. No child receives `GameState`, all seat hands, kitty contents, or a dealer discard.
+`PracticeClient` owns only the current `ClubTableView`, event count, local settings, and narrow command callbacks. `/api/games/[gameId]/practice` loads canonical persisted state on the server, derives bot actions there, appends through the Platform event store, and returns a viewer-safe projection. The client no longer receives active `GameState`, all seat hands, kitty contents, a dealer discard, or a deal seed through its normal Practice path.
 
-This local controller model is not a multiplayer security architecture. Future rooms must move command authority behind authenticated server-side actor and seat derivation before any remote opponent is introduced.
+The endpoint is local and unauthenticated, so it is still not a multiplayer security architecture. Future rooms must add authenticated server-side actor and seat derivation before any remote opponent is introduced.
