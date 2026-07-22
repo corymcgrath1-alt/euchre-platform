@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { createInitialGameState, type Card, type GameState } from "@/lib/euchre";
+import { createInitialGameState, legalActionsForPlayer, type Card, type GameState } from "@/lib/euchre";
 import { buildClubTableView } from "./table";
 
 const card = (rank: Card["rank"], suit: Card["suit"]): Card => ({ rank, suit });
@@ -44,6 +44,8 @@ describe("Club table presentation", () => {
         2: [card("K", "spades")],
         3: [card("Q", "clubs")]
       },
+      kitty: [card("J", "diamonds"), card("10", "clubs"), card("9", "spades")],
+      upcard: card("9", "spades"),
       currentTrick: {
         leader: 3,
         plays: [{ player: 3, card: card("10", "hearts") }]
@@ -57,7 +59,12 @@ describe("Club table presentation", () => {
     expect(serialized).not.toContain('"rank":"A","suit":"diamonds"');
     expect(serialized).not.toContain('"rank":"K","suit":"spades"');
     expect(serialized).not.toContain('"rank":"Q","suit":"clubs"');
-    expect(serialized).not.toContain("kitty");
+    expect(serialized).not.toContain('"rank":"J","suit":"diamonds"');
+    expect(serialized).not.toContain('"rank":"10","suit":"clubs"');
+    expect(JSON.parse(serialized).publicKitty).toEqual({
+      hiddenCardCount: 2,
+      upcard: card("9", "spades")
+    });
   });
 
   it("orients real seats around any viewer while preserving authoritative roles", () => {
@@ -108,6 +115,56 @@ describe("Club table presentation", () => {
     expect(state.hands[0][0]).toEqual(card("A", "hearts"));
     expect(second.viewerHand.cards[0].card).toEqual(card("A", "hearts"));
   });
+  it("redacts hidden dealer discard identity and mirrors authoritative legal actions", () => {
+    const hiddenDiscard = card("A", "diamonds");
+    const state = makeState({
+      phase: "playing",
+      activePlayer: 0,
+      trump: "hearts",
+      hands: { 0: [card("9", "clubs")] },
+      currentTrick: { leader: 0, plays: [] },
+      moveLog: [{
+        id: "discard-event",
+        sequence: 3,
+        player: 2,
+        createdAt: "2026-01-01T00:00:00.000Z",
+        action: { type: "DISCARD", player: 2, card: hiddenDiscard }
+      }]
+    });
+
+    const view = buildClubTableView(state, 0);
+    const authoritative = legalActionsForPlayer(state, 0);
+    const serialized = JSON.stringify(view);
+
+    expect(view.legal.playableCardIds).toEqual(authoritative.playableCards.map((candidate) => `${candidate.rank}-${candidate.suit}`));
+    expect(view.moveHistory[0].label).toBe("North discarded after pickup");
+    expect(serialized).not.toContain('"rank":"A","suit":"diamonds"');
+    expect(serialized).not.toContain("A♦");
+  });
+
+  it("produces distinct viewer hands without leaking another viewer's cards", () => {
+    const state = makeState({
+      phase: "playing",
+      activePlayer: 0,
+      trump: "spades",
+      hands: {
+        0: [card("A", "hearts")],
+        1: [card("K", "diamonds")],
+        2: [card("Q", "clubs")],
+        3: [card("J", "spades")]
+      },
+      currentTrick: { leader: 0, plays: [] }
+    });
+
+    const south = JSON.stringify(buildClubTableView(state, 0));
+    const west = JSON.stringify(buildClubTableView(state, 1));
+
+    expect(south).toContain('"rank":"A","suit":"hearts"');
+    expect(south).not.toContain('"rank":"K","suit":"diamonds"');
+    expect(west).toContain('"rank":"K","suit":"diamonds"');
+    expect(west).not.toContain('"rank":"A","suit":"hearts"');
+  });
+
 });
 
 type StateOverrides = Omit<Partial<GameState>, "config" | "hands"> & {
