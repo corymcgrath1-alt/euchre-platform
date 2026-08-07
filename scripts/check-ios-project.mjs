@@ -5,11 +5,12 @@ import release from "../mobile.release.json" with { type: "json" };
 
 const root = process.cwd();
 const read = (relativePath, encoding = "utf8") => readFile(path.join(root, relativePath), encoding);
-const [capacitor, info, privacy, project, packageSwift, icon] = await Promise.all([
+const [capacitor, info, privacy, project, workspace, packageSwift, icon] = await Promise.all([
   read("capacitor.config.ts"),
   read("ios/App/App/Info.plist"),
   read("ios/App/App/PrivacyInfo.xcprivacy"),
   read("ios/App/App.xcodeproj/project.pbxproj"),
+  read("ios/App/App.xcworkspace/contents.xcworkspacedata"),
   read("ios/App/CapApp-SPM/Package.swift"),
   read("ios/App/App/Assets.xcassets/AppIcon.appiconset/AppIcon-512@2x.png", null)
 ]);
@@ -61,6 +62,7 @@ requireText(project, /IPHONEOS_DEPLOYMENT_TARGET = 15\.0;/u, "The iOS deployment
 requireText(project, new RegExp(`PRODUCT_BUNDLE_IDENTIFIER = ${escapeRegExp(release.bundleIdentifier)};`, "u"), "Xcode bundle ID must match mobile.release.json.");
 requireText(project, new RegExp(`MARKETING_VERSION = ${escapeRegExp(release.marketingVersion)};`, "u"), "Xcode marketing version must match mobile.release.json.");
 requireText(project, new RegExp(`CURRENT_PROJECT_VERSION = ${escapeRegExp(release.buildNumber)};`, "u"), "Xcode build number must match mobile.release.json.");
+requireText(workspace, /location\s*=\s*"group:App\.xcodeproj"/u, "Xcode workspace must reference App.xcodeproj.");
 
 for (const dependency of [
   "@capacitor/app",
