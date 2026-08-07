@@ -27,6 +27,7 @@
     "ios:config:check": "node ./scripts/check-ios-project.mjs",
     "ios:open": "node ./node_modules/@capacitor/cli/bin/capacitor open ios",
     "ios:build:simulator": "node ./scripts/ios-build-simulator.mjs",
+    "ios:archive:unsigned": "node ./scripts/ios-archive-unsigned.mjs",
     "ios:archive:check": "node ./scripts/ios-archive-check.mjs",
     "mobile:assets": "node ./scripts/generate-mobile-assets.mjs"
   },

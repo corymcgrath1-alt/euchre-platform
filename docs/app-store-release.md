@@ -85,6 +85,7 @@ On a Mac with the current required Xcode/iOS SDK:
 npm ci
 npm run ios:sync
 npm run ios:build:simulator
+npm run ios:archive:unsigned
 npm run ios:open
 ```
 
@@ -102,6 +103,10 @@ In Xcode:
    supported screen.
 7. Verify the app contains `PrivacyInfo.xcprivacy`, the 1024x1024 opaque icon, and launch
    assets in the built bundle.
+
+`ios:archive:unsigned` creates a non-uploadable Release archive with signing disabled and
+verifies that the app bundle contains its Info.plist, privacy manifest, and local web
+assets. It is a structural preflight only and does not replace signed Organizer validation.
 
 ## Archive and validation
 
