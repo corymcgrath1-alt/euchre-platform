@@ -1,0 +1,10 @@
+{
+  "appName": "Euchre Club",
+  "bundleIdentifier": "com.corymcgrath.euchreclub",
+  "marketingVersion": "1.0.0",
+  "buildNumber": "1",
+  "privacyPolicyUrl": "https://corymcgrath1-alt.github.io/euchre-platform/privacy/",
+  "supportUrl": "https://corymcgrath1-alt.github.io/euchre-platform/support/",
+  "supportRequestUrl": "https://github.com/corymcgrath1-alt/euchre-platform/issues/new?template=euchre-support.yml",
+  "ownerConfirmationRequired": true
+}

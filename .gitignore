@@ -11,3 +11,6 @@ playtest-results/
 *.tsbuildinfo
 .env
 .env*.local
+dist-mobile/
+playwright-report/
+test-results/

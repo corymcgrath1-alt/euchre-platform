@@ -6,10 +6,8 @@ import {
   type GameState,
   type PlayerIndex
 } from "@/lib/euchre";
-import {
-  persistedEventToMoveEvent,
-  type PersistedMoveEventRecord
-} from "@/lib/persistence/event-store";
+import { persistedEventToMoveEvent } from "@/lib/persistence/replay";
+import type { PersistedMoveEventRecord } from "@/lib/persistence/types";
 import { buildClubTableView, type ClubTableView } from "./table";
 
 export type ClubReplayStepKind =

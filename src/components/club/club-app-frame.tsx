@@ -9,11 +9,11 @@ export function ClubAppFrame({ children }: { children: ReactNode }) {
     <div className={styles.frame}>
       <header className={styles.header}>
         <div className={styles.headerInner}>
-          <Link className={styles.brand} href={"/club" as Route} aria-label="EUCHRE Competitive Card Club">
+          <Link className={styles.brand} href={"/club" as Route} aria-label="Euchre Club">
             <span className={styles.brandMark} aria-hidden="true">E</span>
             <span className={styles.brandCopy}>
               <strong>EUCHRE</strong>
-              <span>Competitive Card Club</span>
+              <span>Solo Card Club</span>
             </span>
           </Link>
           <ClubNavigation />

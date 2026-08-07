@@ -1,0 +1,95 @@
+.page {
+  min-height: calc(100vh - 4rem);
+  padding: clamp(1.5rem, 5vw, 4rem) clamp(1rem, 4vw, 2.5rem);
+  background:
+    linear-gradient(rgb(8 18 17 / 84%), rgb(8 18 17 / 96%)),
+    radial-gradient(circle at top, rgb(13 81 60 / 42%), transparent 44rem);
+}
+
+.content {
+  width: min(100%, 48rem);
+  margin: 0 auto;
+}
+
+.eyebrow {
+  margin: 0 0 0.5rem;
+  color: var(--club-brass-soft);
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0;
+  text-transform: uppercase;
+}
+
+.title {
+  margin: 0;
+  color: var(--club-ivory);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: clamp(2rem, 7vw, 3.5rem);
+  font-weight: 700;
+  letter-spacing: 0;
+  line-height: 1.05;
+}
+
+.lede {
+  max-width: 42rem;
+  margin: 1rem 0 2rem;
+  color: var(--club-ivory-muted);
+  font-size: 1.05rem;
+  line-height: 1.65;
+}
+
+.section {
+  padding: 1.35rem 0;
+  border-top: 1px solid var(--club-line);
+}
+
+.section h2 {
+  margin: 0 0 0.55rem;
+  color: var(--club-ivory);
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.2rem;
+  letter-spacing: 0;
+}
+
+.section p,
+.section li {
+  color: var(--club-ivory-muted);
+  line-height: 1.65;
+}
+
+.section p {
+  margin: 0.45rem 0;
+}
+
+.section ul {
+  margin: 0.5rem 0 0;
+  padding-left: 1.25rem;
+}
+
+.action {
+  display: inline-flex;
+  min-height: 2.75rem;
+  align-items: center;
+  justify-content: center;
+  margin-top: 0.75rem;
+  border: 1px solid var(--club-brass);
+  border-radius: 0.25rem;
+  padding: 0.65rem 1rem;
+  background: var(--club-oxblood);
+  color: var(--club-ivory);
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.ownerNote {
+  border-left: 0.2rem solid var(--club-brass);
+  padding: 0.75rem 1rem;
+  background: rgb(193 151 72 / 8%);
+  color: var(--club-brass-soft);
+}
+
+@media (max-width: 52rem) {
+  .page {
+    min-height: calc(100vh - 7rem);
+  }
+}

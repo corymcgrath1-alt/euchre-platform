@@ -73,7 +73,7 @@ export function PracticeSetupToolbar({
       inPlayMode ? "lg:items-center" : ""
     }`}>
       <div>
-        <p className="text-[11px] font-semibold uppercase text-brass">Unranked Practice</p>
+        <p className="text-[11px] font-semibold uppercase text-brass">Solo Practice</p>
         <h1 className={`${inPlayMode ? "mt-0 text-xl sm:text-2xl" : "mt-1 text-2xl sm:text-3xl"} font-semibold text-white`}>
           Practice table
         </h1>

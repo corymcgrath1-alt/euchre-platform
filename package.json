@@ -13,29 +13,62 @@
     "compare-playtests": "node ./scripts/compare-playtests.cjs",
     "simulate": "node ./scripts/simulate.cjs",
     "test": "node ./node_modules/vitest/vitest.mjs run",
-    "typecheck": "node ./node_modules/typescript/bin/tsc --noEmit"
+    "typecheck": "node ./node_modules/typescript/bin/tsc --noEmit",
+    "verify": "npm run typecheck && npm run mobile:typecheck && npm run lint && npm run test && npm run mobile:test && npm run build && npm run mobile:build && npm run mobile:release:check && npm run ios:config:check",
+    "mobile:dev": "node ./node_modules/vite/bin/vite.js --config vite.mobile.config.ts",
+    "mobile:typecheck": "node ./node_modules/typescript/bin/tsc --noEmit -p tsconfig.mobile.json",
+    "mobile:build": "node ./node_modules/vite/bin/vite.js build --config vite.mobile.config.ts",
+    "mobile:test": "node ./node_modules/vitest/vitest.mjs run --config vitest.mobile.config.ts",
+    "mobile:preview": "node ./node_modules/vite/bin/vite.js preview --config vite.mobile.config.ts",
+    "mobile:e2e": "npm run mobile:build && node ./scripts/run-mobile-e2e.mjs",
+    "app-store:screenshots": "npm run mobile:build && node ./scripts/capture-app-store-screenshots.mjs",
+    "mobile:release:check": "node ./scripts/check-mobile-release.mjs",
+    "ios:sync": "node ./scripts/sync-ios.mjs",
+    "ios:config:check": "node ./scripts/check-ios-project.mjs",
+    "ios:open": "node ./node_modules/@capacitor/cli/bin/capacitor open ios",
+    "ios:build:simulator": "node ./scripts/ios-build-simulator.mjs",
+    "ios:archive:check": "node ./scripts/ios-archive-check.mjs",
+    "mobile:assets": "node ./scripts/generate-mobile-assets.mjs"
   },
   "dependencies": {
+    "@capacitor/app": "^8.1.1",
+    "@capacitor/core": "^8.4.2",
+    "@capacitor/haptics": "^8.0.2",
+    "@capacitor/share": "^8.0.1",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.3",
     "@supabase/supabase-js": "^2.45.4",
     "clsx": "^2.1.1",
-    "next": "^15.0.0",
+    "idb": "^8.0.3",
+    "next": "15.5.23",
     "react": "^19.0.0",
     "react-dom": "^19.0.0",
     "zod": "^3.23.8"
   },
   "devDependencies": {
+    "@capacitor/cli": "8.4.2",
+    "@capacitor/ios": "8.4.2",
     "@eslint/eslintrc": "^3.3.5",
     "@playwright/test": "^1.61.1",
     "@types/node": "^22.10.2",
     "@types/react": "^19.0.1",
     "@types/react-dom": "^19.0.2",
-    "@vitejs/plugin-react": "^4.3.4",
+    "@vitejs/plugin-react": "6.0.4",
     "autoprefixer": "^10.4.20",
     "eslint": "^9.17.0",
-    "eslint-config-next": "^15.0.0",
-    "postcss": "^8.4.49",
+    "eslint-config-next": "15.5.21",
+    "fake-indexeddb": "6.2.5",
+    "postcss": "^8.5.26",
+    "sharp": "0.35.3",
     "tailwindcss": "^3.4.17",
     "typescript": "^5.7.2",
-    "vitest": "^2.1.8"
+    "vite": "8.1.5",
+    "vitest": "4.1.10"
+  },
+  "overrides": {
+    "next": {
+      "postcss": "8.5.26",
+      "sharp": "0.35.3"
+    }
   }
 }

@@ -2,6 +2,25 @@
 
 Phase 1 foundation for a production-minded online/mobile Euchre platform.
 
+## Offline iPhone Client
+
+The repository now includes a phone-first Vite/React client in `mobile/` and a Capacitor
+iOS project in `ios/`. It imports the existing deterministic engine and replay modules
+directly, persists ordered game events in IndexedDB, and bundles all core gameplay assets
+inside the native application. Solo play does not require the Next.js server or a network
+connection.
+
+```powershell
+npm run mobile:dev
+npm run mobile:test
+npm run mobile:e2e
+npm run ios:sync
+```
+
+See `docs/mobile-architecture.md` and `docs/app-store-release.md`. Apple signing,
+permanent URLs, App Store Connect configuration, Mac/Xcode device validation, archive
+validation, upload, and submission remain owner-controlled release steps.
+
 ## Current Codex Handoff
 
 This branch hardens the accessible engine repository for the Practice-match vertical slice. The live Lovable project was inspected but could not be edited from this session because the connector has read access only and returned `403 insufficient_scope` for write operations. See `docs/CODEX_TAKEOVER_AUDIT.md` and `docs/VERIFICATION.md`.
