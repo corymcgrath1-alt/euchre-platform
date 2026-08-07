@@ -7,7 +7,7 @@ import {
   rankPower,
   sameCard
 } from "./cards";
-import { nextPlayer, teamOf } from "./deck";
+import { nextPlayer, partnerOf, teamOf } from "./deck";
 import { SUITS, type Card, type GameState, type LegalActionSummary, type Play, type PlayerIndex, type Suit, type TeamIndex, type Trick } from "./types";
 
 export function getLedSuit(trick: Trick, trump: Suit): Suit | null {
@@ -69,8 +69,8 @@ export function cardTrickPower(card: Card, trump: Suit, ledSuit: Suit): number {
 }
 
 export function determineTrickWinner(trick: Trick, trump: Suit): PlayerIndex {
-  if (trick.plays.length !== 4) {
-    throw new Error("A trick needs four cards before a winner can be determined");
+  if (trick.plays.length === 0) {
+    throw new Error("A trick needs at least one card before a winner can be determined");
   }
 
   const ledSuit = getLedSuit(trick, trump);
@@ -127,12 +127,43 @@ export function scoreHand({
   };
 }
 
-export function nextPlayerInTrick(trick: Trick): PlayerIndex {
-  let player = trick.leader;
-  for (let index = 0; index < trick.plays.length; index += 1) {
-    player = nextPlayer(player);
+export function sittingOutPlayer(lonePlayer?: PlayerIndex): PlayerIndex | undefined {
+  return lonePlayer === undefined ? undefined : partnerOf(lonePlayer);
+}
+
+export function isPlayerSittingOut(player: PlayerIndex, lonePlayer?: PlayerIndex): boolean {
+  return sittingOutPlayer(lonePlayer) === player;
+}
+
+export function trickPlayerCount(lonePlayer?: PlayerIndex): number {
+  return lonePlayer === undefined ? 4 : 3;
+}
+
+export function nextActivePlayer(player: PlayerIndex, lonePlayer?: PlayerIndex): PlayerIndex {
+  let candidate = nextPlayer(player);
+  while (isPlayerSittingOut(candidate, lonePlayer)) {
+    candidate = nextPlayer(candidate);
   }
-  return player;
+  return candidate;
+}
+
+export function activeSeatsFromLeader(leader: PlayerIndex, lonePlayer?: PlayerIndex): PlayerIndex[] {
+  const seats: PlayerIndex[] = [];
+  let seat = isPlayerSittingOut(leader, lonePlayer)
+    ? nextActivePlayer(leader, lonePlayer)
+    : leader;
+
+  while (seats.length < trickPlayerCount(lonePlayer)) {
+    seats.push(seat);
+    seat = nextActivePlayer(seat, lonePlayer);
+  }
+
+  return seats;
+}
+
+export function nextPlayerInTrick(trick: Trick, lonePlayer?: PlayerIndex): PlayerIndex {
+  const seats = activeSeatsFromLeader(trick.leader, lonePlayer);
+  return seats[trick.plays.length] ?? seats[0];
 }
 
 export function assertPlayOrder(trick: Trick, player: PlayerIndex): void {
@@ -149,7 +180,7 @@ export function validateUniquePlay(trick: Trick, play: Play): void {
 }
 
 export function legalActionsForPlayer(state: GameState, player: PlayerIndex): LegalActionSummary {
-  const active = state.activePlayer === player;
+  const active = state.activePlayer === player && !(state.phase === "playing" && isPlayerSittingOut(player, state.lonePlayer));
   const hand = state.hands[player];
   const orderPasses = state.bids.filter((bid) => bid.round === 1 && bid.decision === "pass").length;
   const callPasses = state.bids.filter((bid) => bid.round === 2 && bid.decision === "pass").length;

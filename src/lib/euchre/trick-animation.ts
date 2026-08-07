@@ -84,7 +84,7 @@ export function buildTrickAnimationState(trick: CurrentTrickView): TrickAnimatio
   const winner = getTrickWinnerPresentation(trick);
   const phase = trick.isShowingCompletedTrick
     ? "collecting"
-    : trick.plays.length === 4
+    : trick.plays.length > 0 && trick.unplayedSeats.length === 0
       ? "winner"
       : trick.plays.length > 0
         ? trick.plays.length === 1

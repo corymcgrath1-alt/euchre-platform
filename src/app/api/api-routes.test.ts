@@ -8,6 +8,7 @@ import { apiError } from "./_shared";
 import { POST as createGame } from "./games/route";
 import { GET as loadGame } from "./games/[gameId]/route";
 import { POST as appendEvent } from "./games/[gameId]/events/route";
+import { GET as loadPractice, POST as commandPractice } from "./games/[gameId]/practice/route";
 import { GET as reviewGame } from "./games/[gameId]/review/route";
 import { GET as profileAggregates } from "./profiles/route";
 import { GET as profileDetail } from "./profiles/[seat]/route";
@@ -262,7 +263,7 @@ describe("API route validation", () => {
     expect(body.profile.gameHistory[0]).toMatchObject({
       gameId: game.id,
       result: "win",
-      reviewHref: `/api/games/${game.id}/review`
+      reviewHref: `/club/replay/${game.id}`
     });
     expect(body.profile.trends.last5GamesRecord).toMatchObject({
       games: 1,
@@ -284,6 +285,71 @@ describe("API route validation", () => {
 
     expect(response.status).toBe(400);
     expect(body).toEqual({ error: "Invalid profile seat" });
+  });
+
+  it("returns a viewer-safe Practice projection without seeds, opponent hands, or kitty identities", async () => {
+    const store = await createStore();
+    resetEventStoreForTests(store);
+    const game = await store.createGame({ config: { stickDealer: true, targetScore: 10 } });
+
+    const response = await commandPractice(
+      jsonRequest({
+        expectedSequence: 0,
+        command: "VIEWER_ACTION",
+        action: { type: "START_HAND", seed: 8675309 }
+      }),
+      routeContext(game.id)
+    );
+    const body = await response.json();
+    const loaded = await store.loadGame(game.id);
+    const serialized = JSON.stringify(body);
+
+    expect(response.status).toBe(201);
+    expect(body).not.toHaveProperty("state");
+    expect(body).not.toHaveProperty("events");
+    expect(body.eventCount).toBe(1);
+    expect(body.table.viewerHand.cards.map((candidate: { id: string }) => candidate.id)).toEqual(
+      expect.arrayContaining(loaded.state.hands[0].map((candidate) => `${candidate.rank}-${candidate.suit}`))
+    );
+    for (const seat of [1, 2, 3] as const) {
+      for (const hiddenCard of loaded.state.hands[seat]) expect(serialized).not.toContain(serializedCard(hiddenCard));
+    }
+    for (const hiddenCard of loaded.state.kitty.filter((candidate) => (
+      !loaded.state.upcard || candidate.rank !== loaded.state.upcard.rank || candidate.suit !== loaded.state.upcard.suit
+    ))) {
+      expect(serialized).not.toContain(serializedCard(hiddenCard));
+    }
+    expect(serialized).not.toContain("8675309");
+
+    const loadedResponse = await loadPractice(new Request(`http://localhost/api/games/${game.id}/practice`), routeContext(game.id));
+    expect(loadedResponse.status).toBe(200);
+    expect(await loadedResponse.json()).toEqual(body);
+  });
+
+  it("chooses bot moves from canonical state and rejects a client-spoofed seat without mutation", async () => {
+    const store = await createStore();
+    resetEventStoreForTests(store);
+    const game = await store.createGame({ config: { stickDealer: true, targetScore: 10 } });
+    await store.appendMove({ gameId: game.id, expectedSequence: 0, action: { type: "START_HAND", seed: 12345 } });
+
+    const botResponse = await commandPractice(
+      jsonRequest({ expectedSequence: 1, command: "BOT_MOVE" }),
+      routeContext(game.id)
+    );
+    const botBody = await botResponse.json();
+
+    expect(botResponse.status).toBe(201);
+    expect(botBody.eventCount).toBe(2);
+    expect((await store.loadGame(game.id)).events).toHaveLength(2);
+
+    const spoofed = await commandPractice(
+      jsonRequest({ expectedSequence: 2, command: "VIEWER_ACTION", action: { type: "PASS", player: 2 } }),
+      routeContext(game.id)
+    );
+
+    expect(spoofed.status).toBe(409);
+    expect((await spoofed.json()).error).toBe("Practice presentation may act only for the local viewer seat");
+    expect((await store.loadGame(game.id)).events).toHaveLength(2);
   });
 
 });
@@ -308,6 +374,10 @@ function profileRouteContext(seat: string) {
   return {
     params: Promise.resolve({ seat })
   };
+}
+
+function serializedCard(card: { rank: string; suit: string }): string {
+  return `\"rank\":\"${card.rank}\",\"suit\":\"${card.suit}\"`;
 }
 
 async function createStore(): Promise<LocalEventStore> {

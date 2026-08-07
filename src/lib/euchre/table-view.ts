@@ -1,7 +1,7 @@
 import { cardId, cardLabel, effectiveSuit, isTrump, rankPower } from "./cards";
-import { nextPlayer, partnerOf, teamOf } from "./deck";
+import { partnerOf, teamOf } from "./deck";
 import { buildLegalActionExplanation, formatRecentBotAction } from "./game-ux";
-import { cardTrickPower, legalActionsForPlayer } from "./rules";
+import { activeSeatsFromLeader, cardTrickPower, legalActionsForPlayer } from "./rules";
 import type { Card, GameState, MoveEvent, Phase, Play, PlayerIndex, Suit, TeamIndex } from "./types";
 
 export const TABLE_SEATS = [0, 1, 2, 3] as const satisfies PlayerIndex[];
@@ -297,7 +297,7 @@ export function buildCurrentTrickView(state: GameState, options: { showLatestCom
       isLeader: trick?.leader === play.player,
       isWinningCard: currentWinner?.player === play.player && cardId(currentWinner.card) === cardId(play.card)
     })),
-    unplayedSeats: showingCompleted ? [] : trick ? unplayedSeats(trick.leader, plays) : [...TABLE_SEATS],
+    unplayedSeats: showingCompleted ? [] : trick ? unplayedSeats(trick.leader, plays, state.lonePlayer) : [...TABLE_SEATS],
     currentWinnerSeat: currentWinner?.player,
     currentWinnerLabel: currentWinner ? TABLE_PLAYER_NAMES[currentWinner.player] : undefined,
     winningCardLabel: currentWinner ? cardLabel(currentWinner.card) : undefined,
@@ -335,19 +335,9 @@ function bestPlaySoFar(plays: Play[], trump: Suit, ledSuit: Suit): Play | undefi
   }, undefined);
 }
 
-function unplayedSeats(leader: PlayerIndex, plays: Play[]): PlayerIndex[] {
+function unplayedSeats(leader: PlayerIndex, plays: Play[], lonePlayer?: PlayerIndex): PlayerIndex[] {
   const played = new Set(plays.map((play) => play.player));
-  const seats: PlayerIndex[] = [];
-  let seat = leader;
-
-  for (let index = 0; index < 4; index += 1) {
-    if (!played.has(seat)) {
-      seats.push(seat);
-    }
-    seat = nextPlayer(seat);
-  }
-
-  return seats;
+  return activeSeatsFromLeader(leader, lonePlayer).filter((seat) => !played.has(seat));
 }
 
 function formatPhase(phase: Phase): string {

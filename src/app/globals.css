@@ -4,6 +4,16 @@
 
 :root {
   color-scheme: dark;
+  --club-ink: #081211;
+  --club-ink-soft: #101c1a;
+  --club-ivory: #f1ede3;
+  --club-ivory-muted: #c9c2b3;
+  --club-brass: #c19748;
+  --club-brass-soft: #dab56c;
+  --club-felt: #0d513c;
+  --club-felt-deep: #072f25;
+  --club-oxblood: #6f2027;
+  --club-line: rgba(193, 151, 72, 0.32);
 }
 
 * {
@@ -13,11 +23,14 @@
 body {
   min-height: 100vh;
   margin: 0;
-  background:
-    radial-gradient(circle at 20% 10%, rgba(209, 164, 76, 0.08), transparent 28rem),
-    radial-gradient(circle at 80% 0%, rgba(43, 111, 86, 0.22), transparent 32rem),
-    #071411;
-  color: #eef8f4;
+  background: var(--club-ink);
+  color: var(--club-ivory);
+  font-family: Arial, Helvetica, sans-serif;
+}
+
+:focus-visible {
+  outline: 2px solid var(--club-brass-soft);
+  outline-offset: 3px;
 }
 
 button:disabled {

@@ -5,7 +5,9 @@ import {
   canPlayCard,
   determineTrickWinner,
   isFarmersHandQualifier,
+  nextActivePlayer,
   scoreHand,
+  trickPlayerCount,
   validateCardInHand,
   validCallerSuits
 } from "./rules";
@@ -377,7 +379,7 @@ function beginPlay(state: GameState): GameState {
     throw new Error("Cannot begin play without trump and makers");
   }
 
-  const leader = nextPlayer(state.dealer);
+  const leader = nextActivePlayer(state.dealer, state.lonePlayer);
   return {
     ...state,
     phase: "playing",
@@ -409,12 +411,12 @@ function playCard(state: GameState, player: PlayerIndex, card: Card): GameState 
     plays: [...state.currentTrick.plays, { player, card }]
   };
 
-  if (currentTrick.plays.length < 4) {
+  if (currentTrick.plays.length < trickPlayerCount(state.lonePlayer)) {
     return {
       ...state,
       hands: updatedHands,
       currentTrick,
-      activePlayer: nextPlayer(player)
+      activePlayer: nextActivePlayer(player, state.lonePlayer)
     };
   }
 

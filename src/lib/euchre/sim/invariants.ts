@@ -1,6 +1,11 @@
 import { cardId, createDeck, effectiveSuit } from "../cards";
-import { nextPlayer } from "../deck";
-import { determineTrickWinner, scoreHand } from "../rules";
+import {
+  determineTrickWinner,
+  isPlayerSittingOut,
+  nextActivePlayer,
+  scoreHand,
+  trickPlayerCount
+} from "../rules";
 import {
   RANKS,
   SUITS,
@@ -95,15 +100,6 @@ export function checkGameInvariants(
   checkCards(state, add);
   checkTricks(state, add);
   checkScoring(state, add);
-
-  if (state.lonePlayer !== undefined) {
-    add(
-      "lone-sitout-not-modeled",
-      "warning",
-      "Lone calls are scored, but partner sit-out trick shape is not modeled yet; current engine still plays four-card tricks.",
-      { lonePlayer: state.lonePlayer, lonerMode: state.config.lonerMode }
-    );
-  }
 
   return violations;
 }
@@ -335,8 +331,17 @@ function checkHandSizes(
       });
     }
   }
-  if ((state.phase === "handComplete" || state.phase === "gameComplete") && state.handResult && sizes.some((size) => size !== 0)) {
-    add("invalid-hand-size", "error", "Completed played hands should leave no cards in player hands", { sizes });
+  if ((state.phase === "handComplete" || state.phase === "gameComplete") && state.handResult) {
+    const sittingOut = state.lonePlayer === undefined
+      ? undefined
+      : VALID_SEATS.find((seat) => isPlayerSittingOut(seat, state.lonePlayer));
+    const completedSizesValid = VALID_SEATS.every((seat) => state.hands[seat].length === (seat === sittingOut ? 5 : 0));
+    if (!completedSizesValid) {
+      add("invalid-hand-size", "error", "Completed played hands should leave only a lone hand's sitting partner with cards", {
+        sizes,
+        sittingOut
+      });
+    }
   }
   if ((state.phase === "handComplete" || state.phase === "gameComplete") && !state.handResult && sizes.some((size) => size !== 5)) {
     add("invalid-hand-size", "error", "Passed-out hands should retain five cards per player", { sizes });
@@ -354,20 +359,36 @@ function checkTricks(
   }
 
   if (state.currentTrick) {
-    checkTrickSeatsAndOrder(state.currentTrick, false, add);
-    if (state.currentTrick.plays.length > 4) {
-      add("invalid-trick-card-count", "error", "Current trick cannot contain more than four plays", {
-        plays: state.currentTrick.plays.length
+    checkTrickSeatsAndOrder(state.currentTrick, false, state.lonePlayer, add);
+    if (isPlayerSittingOut(state.currentTrick.leader, state.lonePlayer)) {
+      add("invalid-active-player", "error", "A sitting-out partner cannot lead a lone trick", {
+        leader: state.currentTrick.leader,
+        lonePlayer: state.lonePlayer
+      });
+    }
+    if (state.currentTrick.plays.length > trickPlayerCount(state.lonePlayer)) {
+      add("invalid-trick-card-count", "error", "Current trick cannot contain more plays than active players", {
+        plays: state.currentTrick.plays.length,
+        expectedPlayCount: trickPlayerCount(state.lonePlayer)
       });
     }
   }
 
   state.completedTricks.forEach((trick, index) => {
-    checkTrickSeatsAndOrder(trick, true, add, index + 1);
-    if (trick.plays.length !== 4) {
-      add("invalid-trick-card-count", "error", "Completed tricks must contain four cards in the current engine", {
+    const expectedPlayCount = trickPlayerCount(state.lonePlayer);
+    checkTrickSeatsAndOrder(trick, true, state.lonePlayer, add, index + 1);
+    if (isPlayerSittingOut(trick.leader, state.lonePlayer)) {
+      add("invalid-active-player", "error", "A sitting-out partner cannot lead a lone trick", {
         trickNumber: index + 1,
-        plays: trick.plays.length
+        leader: trick.leader,
+        lonePlayer: state.lonePlayer
+      });
+    }
+    if (trick.plays.length !== expectedPlayCount) {
+      add("invalid-trick-card-count", "error", "Completed tricks must contain one play from each active player", {
+        trickNumber: index + 1,
+        plays: trick.plays.length,
+        expectedPlayCount
       });
     }
     if (trick.winner === undefined || !isSeat(trick.winner)) {
@@ -376,7 +397,7 @@ function checkTricks(
         winner: trick.winner
       });
     }
-    if (state.trump && trick.plays.length === 4 && trick.winner !== undefined) {
+    if (state.trump && trick.plays.length === expectedPlayCount && trick.winner !== undefined) {
       const expectedWinner = determineTrickWinner(trick, state.trump);
       if (expectedWinner !== trick.winner) {
         add("invalid-trick-winner", "error", "Stored trick winner does not match rule engine result", {
@@ -402,6 +423,7 @@ function checkTricks(
 function checkTrickSeatsAndOrder(
   trick: Trick,
   completed: boolean,
+  lonePlayer: PlayerIndex | undefined,
   add: (code: string, severity: InvariantSeverity, message: string, context?: Record<string, unknown>) => void,
   trickNumber?: number
 ) {
@@ -418,9 +440,16 @@ function checkTrickSeatsAndOrder(
     if (seenPlayers.has(play.player)) {
       add("duplicate-trick-seat", "error", "A player appears twice in one trick", { trickNumber, player: play.player });
     }
+    if (isPlayerSittingOut(play.player, lonePlayer)) {
+      add("invalid-trick-play-order", "error", "The loner's partner must sit out this trick", {
+        trickNumber,
+        player: play.player,
+        lonePlayer
+      });
+    }
     seenPlayers.add(play.player);
 
-    const expected = playerAtTrickOffset(trick.leader, index);
+    const expected = playerAtTrickOffset(trick.leader, index, lonePlayer);
     if (play.player !== expected) {
       add("invalid-trick-play-order", "error", "Trick play order does not follow clockwise order from leader", {
         trickNumber,
@@ -476,10 +505,12 @@ function checkScoring(
   }
 }
 
-function playerAtTrickOffset(leader: PlayerIndex, offset: number): PlayerIndex {
-  let player = leader;
+function playerAtTrickOffset(leader: PlayerIndex, offset: number, lonePlayer?: PlayerIndex): PlayerIndex {
+  let player = isPlayerSittingOut(leader, lonePlayer)
+    ? nextActivePlayer(leader, lonePlayer)
+    : leader;
   for (let index = 0; index < offset; index += 1) {
-    player = nextPlayer(player);
+    player = nextActivePlayer(player, lonePlayer);
   }
   return player;
 }

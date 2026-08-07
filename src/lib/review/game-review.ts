@@ -16,10 +16,8 @@ import {
   type TeamIndex,
   type Trick
 } from "@/lib/euchre";
-import {
-  persistedEventToMoveEvent,
-  type PersistedMoveEventRecord
-} from "@/lib/persistence/event-store";
+import { persistedEventToMoveEvent } from "@/lib/persistence/replay";
+import type { PersistedMoveEventRecord } from "@/lib/persistence/types";
 
 const SEATS = [0, 1, 2, 3] as const;
 const TEAMS = [0, 1] as const;

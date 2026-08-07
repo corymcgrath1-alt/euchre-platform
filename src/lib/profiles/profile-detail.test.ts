@@ -68,7 +68,7 @@ describe("player profile detail", () => {
       loneAttempts: 1,
       successfulLoners: 1,
       handsPlayed: 6,
-      reviewHref: "/api/games/game-one/review"
+      reviewHref: "/club/replay/game-one"
     });
   });
 

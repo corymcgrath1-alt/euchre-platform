@@ -1,0 +1,107 @@
+name: Mobile verification
+
+on:
+  push:
+    branches:
+      - codex/mobile-solo-ios-v1
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: mobile-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  web-and-mobile:
+    runs-on: ubuntu-latest
+    timeout-minutes: 35
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Install Playwright Chromium
+        run: npx playwright install --with-deps chromium
+
+      - name: Typecheck web and mobile
+        run: |
+          npm run typecheck
+          npm run mobile:typecheck
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit and integration tests
+        run: |
+          npm run test
+          npm run mobile:test
+
+      - name: Build web application
+        run: npm run build
+
+      - name: Build and inspect mobile release
+        run: |
+          npm run mobile:build
+          npm run mobile:release:check
+          npm run ios:config:check
+
+      - name: Run phone-width mobile E2E
+        run: npm run mobile:e2e
+
+      - name: Upload browser diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: mobile-browser-diagnostics
+          if-no-files-found: ignore
+          retention-days: 5
+          path: |
+            playwright-report/mobile
+            test-results/mobile
+
+  ios-simulator-build:
+    runs-on: macos-latest
+    timeout-minutes: 35
+    steps:
+      - name: Check out source
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Install locked dependencies
+        run: npm ci
+
+      - name: Show selected Xcode
+        run: xcodebuild -version
+
+      - name: Build assets and sync iOS project
+        run: npm run ios:sync
+
+      - name: Build unsigned iPhone simulator application
+        run: npm run ios:build:simulator
+
+      - name: Upload Xcode logs on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: ios-simulator-build-diagnostics
+          if-no-files-found: ignore
+          retention-days: 5
+          path: |
+            ~/Library/Developer/Xcode/DerivedData/**/Logs
+            ios/App/build
